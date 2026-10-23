@@ -187,5 +187,3 @@ export default function AsignacionV2Page() {
     </div>
   );
 }
-EOF
-echo done

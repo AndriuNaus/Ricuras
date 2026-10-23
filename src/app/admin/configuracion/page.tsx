@@ -79,5 +79,3 @@ export default function ConfiguracionPage() {
     </div>
   );
 }
-EOF
-npm run build 2>&1 | tail -4
