@@ -46,3 +46,29 @@
 - Creado .gitignore para no subir .env.local ni node_modules.
 - Repositorio listo para push manual con GitHub Desktop.
 - Vercel conectado al repo para deploy automatico tras push.
+
+### 2026-10-23 - Asignacion v2 mejorada
+- Tabla mas grande y legible.
+- Termino "Operario" en lugar de "Colaborador".
+- Horarios personalizados con entrada/salida editable.
+- Soporte para multiples turnos del mismo operario en un dia.
+- Boton para guardar y replicar el turno a todos los dias visibles.
+
+### 2026-10-23 - Asignacion v2: jornadas y calendario
+- Boton "+ turno" reemplazado por boton "Programar" con icono CalendarPlus.
+- Modal permite varias jornadas por dia (J1, J2) con horas editables.
+- Vista Semana muestra la semana actual (lunes a domingo).
+- Vista Mes ahora es calendario tipo Google Calendar, organizado por semanas.
+- Tabla ampliada (texto y celdas mas grandes).
+
+### 2026-10-23 - Drag & drop y colores en Asignacion v2
+- Tarjetas arrastrables para mover asignaciones entre dias (semana y mes).
+- Boton de duplicar al dia siguiente en cada tarjeta.
+- Selector de color editable por asignacion.
+- Tarjetas con borde de color, sombra e icono de arrastre.
+
+### 2026-10-23 - Tarjetas asignacion v2 estilo foto + drag & drop
+- Se replico el modelo de tarjeta de la referencia: redondeada con gradiente, avatar iniciales, zona, turno J, notas y acciones.
+- Color de tarjeta editable (selector en modal) y gradiente generado con shadeColor.
+- Datos preservados: operario, zona, jornada/turno, notas.
+- Drag & drop entre dias + duplicar al dia siguiente + eliminar.
