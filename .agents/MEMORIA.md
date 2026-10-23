@@ -78,3 +78,15 @@
 - PDF abre ventana de impresión con reporte completo agrupado por operario, resumen totales, tabla detallada.
 - Excel (CSV) respeta el mismo rango de fechas.
 - API attendance GET acepta `from` y `to` para rangos arbitrarios.
+
+### 2026-10-23 - Asignacion v2: botón agregar jornada grande, J2 visible, día libre
+- Botón "Agregar jornada" ahora tiene mismo tamaño/estilo que "Guardar turno" (btn-secondary).
+- Fix: tarjetas ahora muestran J1, J2, J3... correctamente (el idx del map ya funciona).
+- Nueva opción "Día libre" (checkbox en modal): crea tarjeta gris con icono café/sol, sin zona ni horarios.
+- Tarjetas día libre se ven en tabla y vista mes.
+
+### 2026-10-23 - Reportes: PDF con vista previa estilo tarjetas
+- PDF ahora abre ventana con diseño de tarjetas (gradiente, avatar, zona, hora entrada/salida) por día.
+- Incluye resumen (operarios, totales, entradas, salidas) y tabla detallada por operario.
+- Botón "Imprimir / Guardar PDF" en la vista previa.
+- Excel (CSV) respeta el rango día/semana/mes.

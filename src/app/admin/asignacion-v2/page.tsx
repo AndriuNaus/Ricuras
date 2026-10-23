@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { CalendarPlus, Copy, GripVertical, Plus, Trash2, X } from "lucide-react";
+import { CalendarPlus, Copy, GripVertical, Plus, Trash2, X, Sun, Coffee } from "lucide-react";
 
 interface Employee { id: string; full_name: string; }
 interface Zone { id: string; name: string; color_hex: string; }
@@ -18,6 +18,7 @@ interface Assignment {
   startTime: string;
   endTime: string;
   notes?: string;
+  isDayOff?: boolean;
 }
 
 const PRESETS = [
@@ -85,6 +86,7 @@ export default function AsignacionV2Page() {
     color: "#C86D3B",
     shifts: [{ startTime: "08:00", endTime: "15:00" }] as Shift[],
     notes: "",
+    isDayOff: false,
   });
 
   useEffect(() => {
@@ -113,8 +115,28 @@ export default function AsignacionV2Page() {
 
   const buildAssignments = (date: string): Assignment[] => {
     const emp = employees.find((e) => e.id === form.employeeId);
+    if (!emp) return [];
+    
+    // Día libre: crea una asignación especial sin zona ni horarios
+    if (form.isDayOff) {
+      return [{
+        id: Math.random().toString(36).substring(7),
+        date,
+        employeeId: emp.id,
+        employeeName: emp.full_name,
+        zoneId: "",
+        zoneName: "Día libre",
+        zoneColor: "#9CA3AF",
+        color: "#9CA3AF",
+        startTime: "",
+        endTime: "",
+        notes: form.notes.trim() || "Día libre",
+        isDayOff: true,
+      }];
+    }
+    
     const zone = zones.find((z) => z.id === form.zoneId);
-    if (!emp || !zone) return [];
+    if (!zone) return [];
     return form.shifts
       .filter((s) => s.startTime && s.endTime)
       .map((s) => ({
@@ -209,14 +231,16 @@ export default function AsignacionV2Page() {
             draggable
             onDragStart={(e) => handleDragStart(e, it.id)}
             onDragEnd={() => setDraggedId(null)}
-            className={`group relative overflow-hidden rounded-2xl p-3 text-left text-white shadow-md cursor-grab active:cursor-grabbing transition-transform hover:-translate-y-0.5 ${draggedId === it.id ? "opacity-50" : ""}`}
-            style={{ background: `linear-gradient(135deg, ${it.color}, ${shadeColor(it.color, -28)})` }}
+            className={`group relative overflow-hidden rounded-2xl p-3 text-left shadow-md cursor-grab active:cursor-grabbing transition-transform hover:-translate-y-0.5 ${draggedId === it.id ? "opacity-50" : ""}`}
+            style={it.isDayOff
+              ? { background: "linear-gradient(135deg, #9CA3AF, #6B7280)" }
+              : { background: `linear-gradient(135deg, ${it.color}, ${shadeColor(it.color, -28)})`, color: "white" }}
           >
             <div className="absolute -right-6 -top-6 w-20 h-20 rounded-full bg-white/10" />
             <div className="relative flex items-start justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0">
                 <span className="w-8 h-8 rounded-full bg-white/20 border border-white/30 flex items-center justify-center text-[10px] font-bold shrink-0">
-                  {initials(it.employeeName)}
+                  {it.isDayOff ? <Sun className="w-4 h-4" /> : initials(it.employeeName)}
                 </span>
                 <div className="min-w-0">
                   <p className="text-xs font-bold truncate">{it.employeeName}</p>
@@ -224,26 +248,36 @@ export default function AsignacionV2Page() {
                 </div>
               </div>
               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                <GripVertical className="w-4 h-4 text-white/60" />
+                {!it.isDayOff && <GripVertical className="w-4 h-4 text-white/60" />}
                 <button onClick={() => duplicateToNextDay(it.id)} title="Duplicar al día siguiente" className="text-white/80 hover:text-white">
                   <Copy className="w-3.5 h-3.5" />
                 </button>
                 <button onClick={() => removeAssignment(it.id)} title="Eliminar" className="text-white/90 hover:text-red-200 font-bold">×</button>
               </div>
             </div>
-            <div className="relative mt-2 flex items-center justify-between gap-2">
-              <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-mono">
-                J{idx + 1} · {it.startTime}–{it.endTime}
-              </span>
-              <span className="text-[9px] uppercase tracking-wider text-white/70">Jornada</span>
-            </div>
-            {it.notes && <p className="relative mt-1.5 text-[10px] text-white/80 line-clamp-2">{it.notes}</p>}
+            {it.isDayOff ? (
+              <div className="relative mt-2 flex items-center justify-center gap-2">
+                <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-medium">
+                  <Coffee className="w-3.5 h-3.5" /> Día libre
+                </span>
+              </div>
+            ) : (
+              <>
+                <div className="relative mt-2 flex items-center justify-between gap-2">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-mono">
+                    J{idx + 1} · {it.startTime}–{it.endTime}
+                  </span>
+                  <span className="text-[9px] uppercase tracking-wider text-white/70">Jornada</span>
+                </div>
+                {it.notes && <p className="relative mt-1.5 text-[10px] text-white/80 line-clamp-2">{it.notes}</p>}
+              </>
+            )}
           </div>
         ))}
         <button
           onClick={() => {
             setModalDay(day);
-            setForm((f) => ({ ...f, employeeId: emp.id }));
+            setForm((f) => ({ ...f, employeeId: emp.id, isDayOff: false }));
           }}
           className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-brand-terracotta/30 bg-brand-terracotta/5 text-brand-terracotta text-[11px] font-semibold hover:bg-brand-terracotta/10"
         >
@@ -309,16 +343,23 @@ export default function AsignacionV2Page() {
                           draggable
                           onDragStart={(e) => handleDragStart(e, it.id)}
                           onDragEnd={() => setDraggedId(null)}
-                          className={`group rounded-xl px-2 py-1.5 text-[10px] text-white shadow-sm cursor-grab ${draggedId === it.id ? "opacity-50" : ""}`}
-                          style={{ background: `linear-gradient(135deg, ${it.color}, ${shadeColor(it.color, -28)})` }}
+                          className={`group rounded-xl px-2 py-1.5 text-[10px] shadow-sm cursor-grab ${draggedId === it.id ? "opacity-50" : ""}`}
+                          style={it.isDayOff
+                            ? { background: "linear-gradient(135deg, #9CA3AF, #6B7280)", color: "white" }
+                            : { background: `linear-gradient(135deg, ${it.color}, ${shadeColor(it.color, -28)})`, color: "white" }}
                         >
                           <div className="flex items-center justify-between gap-1">
-                            <span className="font-semibold truncate">{it.employeeName.split(" ")[0]} · {it.zoneName}</span>
+                            <span className="font-semibold truncate flex items-center gap-1">
+                              {it.isDayOff && <Sun className="w-3.5 h-3.5" />}
+                              {it.employeeName.split(" ")[0]} · {it.zoneName}
+                            </span>
                             <button onClick={() => duplicateToNextDay(it.id)} title="Duplicar al día siguiente" className="opacity-0 group-hover:opacity-100 text-white/80 hover:text-white">
                               <Copy className="w-3 h-3" />
                             </button>
                           </div>
-                          <div className="font-mono text-white/80">J{idx + 1}: {it.startTime}-{it.endTime}</div>
+                          <div className="font-mono text-white/80">
+                            {it.isDayOff ? "Día libre" : `J${idx + 1}: ${it.startTime}-${it.endTime}`}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -378,7 +419,10 @@ export default function AsignacionV2Page() {
                 <p className="text-xs font-semibold uppercase tracking-wider text-brand-espresso">Turnos ya asignados</p>
                 {dayAssignments.map((a, idx) => (
                   <div key={a.id} className="flex items-center justify-between text-xs">
-                    <span><strong>{a.employeeName}</strong> — {a.zoneName} • J{idx + 1} {a.startTime}-{a.endTime}</span>
+                    <span>
+                      <strong>{a.employeeName}</strong> — {a.zoneName}
+                      {a.isDayOff ? " · Día libre" : ` · J${idx + 1} ${a.startTime}-${a.endTime}`}
+                    </span>
                     <button onClick={() => removeAssignment(a.id)} className="text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
                   </div>
                 ))}
@@ -409,13 +453,21 @@ export default function AsignacionV2Page() {
               <span className="text-xs text-brand-espresso/60">{form.color}</span>
             </div>
 
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="block font-semibold uppercase tracking-wider text-brand-espresso text-xs">Jornadas del día</label>
-                <button type="button" onClick={addShiftRow} className="inline-flex items-center gap-1 text-xs font-semibold text-brand-terracotta">
-                  <Plus className="w-3.5 h-3.5" /> Agregar jornada
-                </button>
-              </div>
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-brand-latte/50 border border-brand-latte-border">
+              <input
+                type="checkbox"
+                id="dayOff"
+                checked={form.isDayOff}
+                onChange={(e) => setForm((f) => ({ ...f, isDayOff: e.target.checked, shifts: e.target.checked ? [] : [{ startTime: "08:00", endTime: "15:00" }] }))}
+                className="w-4 h-4 text-brand-terracotta border-brand-latte-border rounded focus:ring-brand-terracotta"
+              />
+              <label htmlFor="dayOff" className="text-sm font-semibold text-brand-espresso cursor-pointer">
+                Día libre (sin turno)
+              </label>
+            </div>
+
+            {!form.isDayOff && (
+              <div>
               <div className="flex flex-wrap gap-2 mb-3">
                 {PRESETS.map((p) => (
                   <button key={p.label} type="button" onClick={() => setForm((f) => ({ ...f, shifts: f.shifts.map((s, i) => i === f.shifts.length - 1 ? { startTime: p.start, endTime: p.end } : s) }))} className="px-3 py-1.5 rounded-lg border border-brand-latte-border text-xs font-semibold text-brand-espresso hover:bg-brand-latte">
@@ -436,6 +488,7 @@ export default function AsignacionV2Page() {
               </div>
               <p className="text-[11px] text-brand-espresso/60 mt-2">Ejemplo: J1 08:00-12:00 y J2 18:00-22:00 para una persona con dos jornadas el mismo día.</p>
             </div>
+          )}
 
             <div>
               <label className="block font-semibold uppercase tracking-wider text-brand-espresso mb-1 text-xs">Instrucciones</label>

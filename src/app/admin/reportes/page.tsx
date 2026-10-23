@@ -109,14 +109,21 @@ export default function ReportesPage() {
       return;
     }
 
-    // PDF: abrir ventana de impresión con reporte completo
+    // PDF: vista previa con tarjetas estilo UI (gradiente, avatar, etc.)
     const printWindow = window.open("", "_blank", "width=900,height=700");
     if (!printWindow) {
       alert("Permite ventanas emergentes para generar el PDF");
       return;
     }
 
-    const grouped = reportData.reduce((acc, r) => {
+    const groupedByDay = reportData.reduce((acc, r) => {
+      const date = new Date(r.timestamp).toISOString().split("T")[0];
+      if (!acc[date]) acc[date] = [];
+      acc[date].push(r);
+      return acc;
+    }, {} as Record<string, AttendanceRecord[]>);
+
+    const groupedByEmp = reportData.reduce((acc, r) => {
       const name = r.employees?.full_name ?? "Desconocido";
       if (!acc[name]) acc[name] = [];
       acc[name].push(r);
@@ -128,6 +135,26 @@ export default function ReportesPage() {
     const salidas = reportData.filter(r => r.record_type === "salida").length;
     const unicos = new Set(reportData.map(r => r.employeeId)).size;
 
+    const initials = (name: string) => name.split(" ").filter(Boolean).slice(0, 2).map(n => n[0]).join("").toUpperCase();
+    const shadeColor = (hex: string, percent: number) => {
+      const clean = hex.replace("#", "");
+      const num = parseInt(clean.length === 3 ? clean.split("").map(c => c + c).join("") : clean, 16);
+      const amt = Math.round(2.55 * percent);
+      const r = Math.min(255, Math.max(0, (num >> 16) + amt));
+      const g = Math.min(255, Math.max(0, ((num >> 8) & 0x00ff) + amt));
+      const b = Math.min(255, Math.max(0, (num & 0x0000ff) + amt));
+      return "#" + (0x1000000 + r * 0x10000 + g * 0x100 + b).toString(16).slice(1);
+    };
+
+    // Colores por zona/turno (simulados)
+    const zoneColors: Record<string, string> = {
+      "entrada": "#C86D3B",
+      "salida": "#7AB88F",
+      "manual": "#3A86FF",
+      "camara": "#E07A5F",
+      "whatsapp": "#9B59B6",
+    };
+
     const html = `
 <!DOCTYPE html>
 <html lang="es">
@@ -136,88 +163,182 @@ export default function ReportesPage() {
   <title>Reporte Asistencia - ${getDateRangeLabel()}</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 11px; color: #1a1a1a; line-height: 1.4; padding: 20mm; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 11px; color: #1a1a1a; line-height: 1.4; background: #f5f5f5; padding: 20px; }
     @page { margin: 15mm; size: A4; }
-    header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #C86D3B; padding-bottom: 12px; }
-    h1 { font-size: 22px; font-weight: 700; color: #2B1B17; margin-bottom: 4px; }
-    .subtitle { font-size: 12px; color: #666; }
-    .meta { display: flex; justify-content: space-between; margin: 16px 0; font-size: 11px; color: #444; }
-    .meta div { display: flex; gap: 8px; align-items: center; }
+    @media print {
+      body { background: white; padding: 0; }
+      .no-print { display: none; }
+    }
+    .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+    header { text-align: center; margin-bottom: 24px; border-bottom: 3px solid #C86D3B; padding-bottom: 16px; }
+    h1 { font-size: 24px; font-weight: 700; color: #2B1B17; margin-bottom: 4px; font-family: Georgia, serif; }
+    .subtitle { font-size: 13px; color: #666; }
+    .meta { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin: 20px 0; font-size: 11px; color: #444; }
+    .meta div { display: flex; gap: 8px; align-items: center; background: #F5E6D3; padding: 8px 12px; border-radius: 8px; }
     .meta strong { color: #2B1B17; }
-    table { width: 100%; border-collapse: collapse; margin-top: 12px; page-break-inside: auto; }
-    th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; font-size: 10px; }
-    th { background: #F5E6D3; color: #2B1B17; font-weight: 600; position: sticky; top: 0; }
-    tr:nth-child(even) td { background: #fafafa; }
-    .employee-section { page-break-inside: avoid; break-inside: avoid; }
-    .employee-name { font-weight: 700; font-size: 11px; color: #2B1B17; padding: 8px 0 4px; border-top: 1px solid #eee; }
-    .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
-    .summary-card { background: #F5E6D3; border-radius: 8px; padding: 10px; text-align: center; }
-    .summary-card .value { font-size: 20px; font-weight: 700; color: #C86D3B; }
-    .summary-card .label { font-size: 10px; color: #555; text-transform: uppercase; }
-    .entrada { color: #7AB88F; font-weight: 600; }
-    .salida { color: #E07A5F; font-weight: 600; }
+    .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+    .summary-card { background: linear-gradient(135deg, #F5E6D3, #E8D5C4); border-radius: 12px; padding: 16px; text-align: center; border: 1px solid #DCC4B0; }
+    .summary-card .value { font-size: 24px; font-weight: 700; color: #C86D3B; line-height: 1; }
+    .summary-card .label { font-size: 10px; color: #555; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
+    .section-title { font-size: 14px; font-weight: 700; color: #2B1B17; margin: 24px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #E8D5C4; font-family: Georgia, serif; }
+    .day-section { margin-bottom: 24px; page-break-inside: avoid; }
+    .day-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding: 10px 14px; background: linear-gradient(135deg, #2B1B17, #1a100d); color: white; border-radius: 10px; }
+    .day-header .date { font-size: 16px; font-weight: 700; }
+    .day-header .weekday { font-size: 12px; opacity: 0.8; text-transform: uppercase; }
+    .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+    .card { border-radius: 16px; padding: 16px; color: white; box-shadow: 0 4px 12px rgba(0,0,0,0.12); transition: transform 0.2s; position: relative; overflow: hidden; min-height: 140px; display: flex; flex-direction: column; }
+    .card::before { content: ""; position: absolute; top: -30px; right: -30px; width: 80px; height: 80px; border-radius: 50%; background: rgba(255,255,255,0.1); }
+    .card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+    .card-avatar { width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.3); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; }
+    .card-info { flex: 1; min-width: 0; }
+    .card-name { font-size: 13px; font-weight: 700; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .card-zone { font-size: 10px; opacity: 0.85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .card-actions { opacity: 0; transition: opacity 0.2s; }
+    .card:hover .card-actions { opacity: 1; }
+    .card-time { margin-top: auto; padding-top: 8px; }
+    .time-pill { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.2); padding: 6px 10px; border-radius: 20px; font-size: 10px; font-family: monospace; font-weight: 600; }
+    .time-pill.entrada { background: rgba(122, 184, 143, 0.3); }
+    .time-pill.salida { background: rgba(224, 122, 95, 0.3); }
+    .card-notes { font-size: 10px; opacity: 0.8; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.15); line-height: 1.3; }
+    .day-libre { background: linear-gradient(135deg, #9CA3AF, #6B7280); }
+    .day-libre .time-pill { background: rgba(255,255,255,0.2); }
+    .records-table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 10px; }
+    .records-table th, .records-table td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
+    .records-table th { background: #F5E6D3; color: #2B1B17; font-weight: 600; }
+    .records-table tr:nth-child(even) td { background: #fafafa; }
+    .entrada-badge { color: #7AB88F; font-weight: 600; }
+    .salida-badge { color: #E07A5F; font-weight: 600; }
     .status-ok { color: #7AB88F; }
     .status-late { color: #E07A5F; }
     .status-early { color: #3A86FF; }
-    footer { margin-top: 24px; text-align: center; font-size: 9px; color: #999; border-top: 1px solid #eee; padding-top: 8px; }
+    footer { margin-top: 30px; text-align: center; font-size: 9px; color: #999; border-top: 1px solid #eee; padding-top: 12px; }
+    .print-btn { position: fixed; top: 20px; right: 20px; padding: 12px 24px; background: #C86D3B; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px rgba(200,109,59,0.3); z-index: 100; }
+    .print-btn:hover { background: #b05d33; }
     @media print {
-      body { padding: 0; }
-      .no-print { display: none; }
+      .print-btn { display: none; }
+      .container { box-shadow: none; padding: 0; max-width: none; }
+      .cards-grid { display: grid; grid-template-columns: repeat(3, 1fr); }
     }
   </style>
 </head>
 <body>
-  <header>
-    <h1>Ricuras de Sal y Dulce</h1>
-    <div class="subtitle">Reporte de Asistencia — ${getDateRangeLabel()}</div>
-  </header>
-  <div class="meta">
-    <div><strong>Período:</strong> ${getDateRangeLabel()}</div>
-    <div><strong>Generado:</strong> ${new Date().toLocaleString("es-EC")}</div>
-  </div>
-  <div class="summary">
-    <div class="summary-card"><div class="value">${unicos}</div><div class="label">Operarios</div></div>
-    <div class="summary-card"><div class="value">${totalRecords}</div><div class="label">Registros totales</div></div>
-    <div class="summary-card"><div class="value entrada">${entradas}</div><div class="label">Entradas</div></div>
-    <div class="summary-card"><div class="value salida">${salidas}</div><div class="label">Salidas</div></div>
-  </div>
-  ${Object.entries(grouped).map(([emp, records]) => `
-    <div class="employee-section">
-      <div class="employee-name">${emp}</div>
-      <table>
-        <thead>
-          <tr>
-            <th style="width:20%">Fecha</th>
-            <th style="width:12%">Hora</th>
-            <th style="width:18%">Tipo</th>
-            <th style="width:18%">Método</th>
-            <th style="width:18%">Estado</th>
-            <th>Observaciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${records.map(r => {
-            const dt = new Date(r.timestamp);
-            return `
-            <tr>
-              <td>${dt.toLocaleDateString("es-EC", { day: "2-digit", month: "short", weekday: "short" })}</td>
-              <td>${dt.toLocaleTimeString("es-EC", { hour: "2-digit", minute: "2-digit" })}</td>
-              <td class="${r.record_type === "entrada" ? "entrada" : "salida"}">${r.record_type}</td>
-              <td>${r.method}</td>
-              <td class="status-${r.status?.toLowerCase() || "ok"}">${r.status}</td>
-              <td></td>
-            </tr>`;
-          }).join("")}
-        </tbody>
-      </table>
+  <button class="print-btn no-print" onclick="window.print()">Imprimir / Guardar PDF</button>
+  <div class="container">
+    <header>
+      <h1>Ricuras de Sal y Dulce</h1>
+      <div class="subtitle">Reporte de Asistencia — ${getDateRangeLabel()}</div>
+    </header>
+    <div class="meta">
+      <div><strong>Período:</strong> ${getDateRangeLabel()}</div>
+      <div><strong>Generado:</strong> ${new Date().toLocaleString("es-EC")}</div>
     </div>
-  `).join("")}
-  <footer>
-    Generado automáticamente por Ricuras de Sal y Dulce — Sistema de Gestión
-  </footer>
-  <script>
-    window.onload = function() { window.print(); window.onafterprint = function() { window.close(); }; };
-  </script>
+    <div class="summary">
+      <div class="summary-card"><div class="value">${unicos}</div><div class="label">Operarios</div></div>
+      <div class="summary-card"><div class="value">${totalRecords}</div><div class="label">Registros totales</div></div>
+      <div class="summary-card"><div class="value entrada">${entradas}</div><div class="label">Entradas</div></div>
+      <div class="summary-card"><div class="value salida">${salidas}</div><div class="label">Salidas</div></div>
+    </div>
+
+    <!-- Vista por día con tarjetas -->
+    <h2 class="section-title">Resumen por Día (Estilo Tarjetas)</h2>
+    ${Object.entries(groupedByDay).sort(([a], [b]) => a.localeCompare(b)).map(([date, records]) => {
+      const dt = new Date(date + "T12:00:00");
+      const weekday = dt.toLocaleDateString("es-EC", { weekday: "long" });
+      const formattedDate = dt.toLocaleDateString("es-EC", { day: "2-digit", month: "long", year: "numeric" });
+      
+      // Agrupar por operario para este día
+      const byEmp = records.reduce((acc, r) => {
+        const name = r.employees?.full_name ?? "Desconocido";
+        if (!acc[name]) acc[name] = { entrada: [], salida: [], method: r.method };
+        acc[name][r.record_type].push(r);
+        return acc;
+      }, {} as Record<string, { entrada: AttendanceRecord[]; salida: AttendanceRecord[]; method: string }>);
+
+      return `
+      <div class="day-section">
+        <div class="day-header">
+          <div>
+            <div class="date">${formattedDate}</div>
+            <div class="weekday">${weekday}</div>
+          </div>
+        </div>
+        <div class="cards-grid">
+          ${Object.entries(byEmp).map(([emp, data]) => {
+            const firstRecord = data.entrada[0] || data.salida[0];
+            const color = zoneColors[data.method] || "#C86D3B";
+            const darkerColor = shadeColor(color, -25);
+            const hasEntrada = data.entrada.length > 0;
+            const hasSalida = data.salida.length > 0;
+            const entradaTime = hasEntrada ? new Date(data.entrada[0].timestamp).toLocaleTimeString("es-EC", { hour: "2-digit", minute: "2-digit" }) : "--:--";
+            const salidaTime = hasSalida ? new Date(data.salida[0].timestamp).toLocaleTimeString("es-EC", { hour: "2-digit", minute: "2-digit" }) : "--:--";
+            
+            return `
+            <div class="card" style="background: linear-gradient(135deg, ${color}, ${darkerColor});">
+              <div class="card-header">
+                <div class="flex items-center gap-3">
+                  <div class="card-avatar">${initials(emp)}</div>
+                  <div class="card-info">
+                    <div class="card-name">${emp}</div>
+                    <div class="card-zone">${data.method}</div>
+                  </div>
+                </div>
+              </div>
+              <div class="card-time">
+                <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                  ${hasEntrada ? `<span class="time-pill entrada"><span>⬇</span> Entrada: ${entradaTime}</span>` : ""}
+                  ${hasSalida ? `<span class="time-pill salida"><span>⬆</span> Salida: ${salidaTime}</span>` : ""}
+                  ${!hasEntrada && !hasSalida ? `<span class="time-pill">Sin registros</span>` : ""}
+                </div>
+              </div>
+            </div>
+            `;
+          }).join("")}
+        </div>
+      </div>
+      `;
+    }).join("")}
+
+    <!-- Detalle completo por operario (tabla) -->
+    <h2 class="section-title">Detalle Completo por Operario</h2>
+    ${Object.entries(groupedByEmp).map(([emp, records]) => `
+      <div class="employee-section" style="page-break-inside: avoid; margin-bottom: 20px;">
+        <div style="font-weight: 700; font-size: 12px; color: #2B1B17; padding: 10px 0 6px; border-bottom: 2px solid #E8D5C4; margin-bottom: 8px;">${emp}</div>
+        <table class="records-table">
+          <thead>
+            <tr>
+              <th style="width:20%">Fecha</th>
+              <th style="width:12%">Hora</th>
+              <th style="width:18%">Tipo</th>
+              <th style="width:18%">Método</th>
+              <th style="width:18%">Estado</th>
+              <th>Observaciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${records.map(r => {
+              const dt = new Date(r.timestamp);
+              return `
+              <tr>
+                <td>${dt.toLocaleDateString("es-EC", { day: "2-digit", month: "short", weekday: "short" })}</td>
+                <td>${dt.toLocaleTimeString("es-EC", { hour: "2-digit", minute: "2-digit" })}</td>
+                <td class="${r.record_type === "entrada" ? "entrada-badge" : "salida-badge"}">${r.record_type}</td>
+                <td>${r.method}</td>
+                <td class="status-${r.status?.toLowerCase() || "ok"}">${r.status}</td>
+                <td></td>
+              </tr>`;
+            }).join("")}
+          </tbody>
+        </table>
+      </div>
+    `).join("")}
+
+    <footer>
+      Generado automáticamente por Ricuras de Sal y Dulce — Sistema de Gestión
+    </footer>
+    <script>
+      window.onload = function() { window.print(); window.onafterprint = function() { window.close(); }; };
+    </script>
+  </div>
 </body>
 </html>`;
 
