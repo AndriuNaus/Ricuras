@@ -43,6 +43,8 @@ export async function GET(request: Request) {
   const employeeId = url.searchParams.get("employee_id");
   const date = url.searchParams.get("date");
   const month = url.searchParams.get("month");
+  const from = url.searchParams.get("from");
+  const to = url.searchParams.get("to");
 
   let query = supabase
     .from("attendance_records")
@@ -50,8 +52,11 @@ export async function GET(request: Request) {
     .order("timestamp", { ascending: false });
 
   if (employeeId) query = query.eq("employee_id", employeeId);
-  if (date) query = query.gte("timestamp", `${date}T00:00:00`).lte("timestamp", `${date}T23:59:59`);
-  if (month) {
+  if (from && to) {
+    query = query.gte("timestamp", `${from}T00:00:00`).lte("timestamp", `${to}T23:59:59`);
+  } else if (date) {
+    query = query.gte("timestamp", `${date}T00:00:00`).lte("timestamp", `${date}T23:59:59`);
+  } else if (month) {
     const [y, m] = month.split("-");
     const start = `${y}-${m}-01T00:00:00`;
     const endDate = new Date(Number(y), Number(m), 0).toISOString().slice(0, 10);

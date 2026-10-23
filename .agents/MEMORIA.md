@@ -72,3 +72,9 @@
 - Color de tarjeta editable (selector en modal) y gradiente generado con shadeColor.
 - Datos preservados: operario, zona, jornada/turno, notas.
 - Drag & drop entre dias + duplicar al dia siguiente + eliminar.
+
+### 2026-10-23 - Reportes: export PDF semana/mes/día
+- Selector de período (Día/Semana/Mes) en /admin/reportes.
+- PDF abre ventana de impresión con reporte completo agrupado por operario, resumen totales, tabla detallada.
+- Excel (CSV) respeta el mismo rango de fechas.
+- API attendance GET acepta `from` y `to` para rangos arbitrarios.
