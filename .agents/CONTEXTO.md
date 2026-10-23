@@ -1,48 +1,76 @@
 # Contexto del Proyecto - Ricuras de Sal y Dulce
 
-## Información del Negocio
+## Stack y Arquitectura
+- **Frontend:** Next.js 14+ (App Router) + TypeScript + Tailwind CSS
+- **Backend:** Next.js API Routes (serverless) + Supabase (PostgreSQL + Auth + Storage)
+- **Deploy:** Vercel (auto-deploy on push to `main`)
+- **Auth:** Supabase Auth con roles: `usuario`, `admin`, `superadmin` (tabla `profiles`)
+- **DB:** Supabase PostgreSQL con RLS habilitado en todas las tablas
 
-### Identidad
-- **Nombre comercial:** Ricuras de Sal y Dulce - CAFÉ
-- **Concepto:** Cafetería de especialidad, repostería artesanal y restaurante de gastronomía tradicional lojana (bolones, tigrillo, tamales, cecina, café de altura).
-- **Ambiente:** Acogedor, decorado con abundante vegetación natural, iluminación cálida y toques de madera rústica y moderna.
+## Paleta Institucional (tokens Tailwind)
+- `brand-espresso` `#2B1B17` — texto principal, fondos oscuros
+- `brand-terracotta` `#C86D3B` — acentos, botones primarios, bordes focus
+- `brand-cream` `#F5E6D3` — fondos claros, tarjetas
+- `brand-latte` `#E8D5C4` — bordes suaves, hover
+- `brand-latte-border` `#DCC4B0` — bordes
+- `brand-mint` `#A8D5BA` — éxito, estados positivos
+- `brand-mint-dark` `#7AB88F` — hover éxito
 
-### Locaciones y Sucursales
-1. **Sede Matriz (Centro Histórico):** Calle José Joaquín de Olmedo 16-33 y González Suárez, Sector San Sebastián, Loja, Ecuador.
-2. **Sede Deportiva / Wellness:** Av. Zoilo Rodríguez (Six Wellness Center / Loja Padel Club).
+## Rutas Principales
+| Ruta | Descripción |
+|------|-------------|
+| `/` | Landing pública |
+| `/login` | Login con redirección por rol |
+| `/admin` | Dashboard admin (layout sidebar) |
+| `/admin/empleados` | CRUD operarios + cargo selector |
+| `/admin/asistencia` | Marcación manual + cámara |
+| `/admin/asignacion-v2` | **Planificador v2** (día/semana/mes, drag&drop) |
+| `/admin/tareas` | Planificador v1 (legacy, mantener) |
+| `/admin/reportes` | Export CSV + print PDF |
+| `/admin/configuracion` | Superadmin: zonas + gestión admins |
+| `/api/health` | Health check Supabase |
 
-### Redes Sociales y Enlaces Oficiales
-- **Instagram:** [https://www.instagram.com/ricurasdesalydulce/](https://www.instagram.com/ricurasdesalydulce/)
-- **Facebook:** [Ricuras De Sal Y Dulce - CAFÉ](https://www.facebook.com/ricurasdesalydulce/)
-- **Delivery local:** PedidoIQ
+## Asignación v2 — Estado Actual (2026-10-23)
+- **En memoria** (`assignments` state). **No persiste en BD** (se pierde al recargar).
+- **Tarjetas:** gradiente `linear-gradient(135deg, color, shadeColor(color,-28))`, avatar iniciales, nombre operario, zona, jornada `J{idx} · HH:MM–HH:MM`, notas, acciones hover (grip, duplicar, eliminar).
+- **Color editable:** selector `<input type="color">` en modal; al cambiar zona, hereda `zone.color_hex`.
+- **Múltiples jornadas:** form `shifts[]` con botón "Agregar jornada", presets (Mañana/Tarde/Completa), inputs time editables.
+- **Drag & drop:** `handleDragStart/handleDrop` entre celdas (semana/mes).
+- **Duplicar:** `duplicateToNextDay(id)` crea copia en día siguiente.
+- **Replicar:** `saveShifts(true)` copia a todos los días visibles.
+- **Vistas:** Día (1 col), Semana (7 cols, semana actual lunes-dom), Mes (grid 6×7 semanas tipo Google Calendar).
 
----
+## Próximo Paso Crítico: Persistencia
+Crear tabla `task_assignments` en Supabase con RLS:
+```sql
+create table public.task_assignments (
+  id uuid primary key default gen_random_uuid(),
+  date date not null,
+  employee_id uuid references public.profiles(id) not null,
+  zone_id uuid references public.zones(id) not null,
+  start_time time not null,
+  end_time time not null,
+  notes text,
+  color_hex text default '#C86D3B',
+  created_by uuid references public.profiles(id),
+  created_at timestamptz default now()
+);
+alter table public.task_assignments enable row level security;
+-- RLS: admins ven todo, superadmin todo, usuarios solo propios (según rol en profiles)
+```
 
-## Guía Visual y Paleta Cromática para la Landing Page
+## Variables de Entorno (`.env.local` — no commitear)
+```
+NEXT_PUBLIC_SUPABASE_URL=https://fpoexfmiluqnvzgshtgw.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
+```
 
-Para que la web capture fielmente la esencia de las fotos de su Instagram y Facebook:
+## Referencias Visuales
+- Carpeta: `.agents/Fotos/`
+- Imagen referencia tarjetas: `Captura desde 2026-10-23 12-49-37.png` (morado/violeta, tarjeta redondeada con avatar, texto blanco)
 
-| Tono | Código Hex | Significado y Aplicación |
-|---|---|---|
-| **Espresso Profundo** | `#2C1A11` | Tradición cafetera, madera, tipografías y encabezados de impacto. |
-| **Crema Latte** | `#FAF7F2` | Fondo principal cálido y limpio; transmite frescura de repostería y lácteos. |
-| **Terracota Dorado** | `#C86D3B` | Botones de acción (CTA), bordes de destaque; emula el dorado crujiente del verde frito/horneado. |
-| **Verde Botánico** | `#2D5A3D` | Detalles de ambientación vegetal que caracterizan la decoración del local. |
-| **Ámbar / Miel** | `#D4AF37` | Badges de especialidad, sellos de calidad y detalles prémium. |
-
-### Tipografía recomendada
-- **Titulares:** Serif cálida con personalidad (*Playfair Display* o *Lora*).
-- **Cuerpo y botones:** Sans moderna, legible y accesible (*Plus Jakarta Sans* o *Inter*).
-
----
-
-## Glosario del Sistema Operativo
-
-| Concepto | Significado en el Sistema |
-|---|---|
-| **Marcación** | Evento puntual donde un colaborador registra su entrada o salida. |
-| **Método Manual** | El administrador en turno pulsa el botón correspondiente al empleado. |
-| **Método Cámara** | La laptop del restaurante toma una captura fotográfica al momento de fichar. |
-| **Método WhatsApp** | El empleado envía su selfie y ubicación geográfica a la cuenta verificada. |
-| **Zona Operativa** | Área del establecimiento asignada a un colaborador (Piso 1, Barra, Cocina, Terraza, Padel Club). |
-| **Hoja de Tareas Diaria** | Gráfica/tabla con el reparto del personal para el día o la semana, exportable a imagen. |
+## Contactos / Enlaces
+- GitHub: `https://github.com/AndriuNaus/Ricuras`
+- Supabase: `https://fpoexfmiluqnvzgshtgw.supabase.co`
+- Vercel: proyecto conectado al repo (auto-deploy on push)
