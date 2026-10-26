@@ -11,6 +11,11 @@ import {
   MoreVertical,
   Loader2,
   X,
+  Coffee,
+  Pause,
+  Trash2,
+  RotateCcw,
+  Power,
 } from "lucide-react";
 
 interface Employee {
@@ -19,6 +24,7 @@ interface Employee {
   position: string;
   phone: string | null;
   is_active: boolean;
+  status: string | null;
 }
 
 interface NewEmployeeForm {
@@ -34,6 +40,7 @@ export default function EmpleadosPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [form, setForm] = useState<NewEmployeeForm>({
     full_name: "",
     position: "Polifuncional",
@@ -49,7 +56,9 @@ export default function EmpleadosPage() {
       if (!res.ok) {
         throw new Error(json?.error || "No se pudo cargar el personal.");
       }
-      setEmployees(json.data ?? []);
+      setEmployees(
+        (json.data ?? []).map((r: Employee) => ({ ...r, status: r.status ?? (r.is_active ? "activo" : "inactivo") }))
+      );
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : "Error desconocido");
     } finally {
@@ -95,15 +104,37 @@ export default function EmpleadosPage() {
     }
   };
 
-  const handleDeactivate = async (id: string) => {
-    if (!confirm("¿Desactivar este colaborador?")) return;
+  const statusMap = (emp: { is_active: boolean; status: string | null }) =>
+    !emp.is_active ? "inactivo" : emp.status ?? "activo";
+
+  const updateEmployeeLocally = (id: string, updates: Partial<Employee>) =>
+    setEmployees((prev) => prev.map((emp) => (emp.id === id ? { ...emp, ...updates } : emp)));
+
+  const handleStatus = async (id: string, is_active: boolean, status: string) => {
     try {
-      const res = await fetch(`/api/employees/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/employees/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_active, status }),
+      });
       const json = await res.json();
-      if (!res.ok) throw new Error(json?.error || "No se pudo desactivar.");
-      setEmployees((prev) =>
-        prev.map((emp) => (emp.id === id ? { ...emp, is_active: false } : emp))
-      );
+      if (!res.ok) throw new Error(json?.error || "No se pudo actualizar el estado.");
+      updateEmployeeLocally(id, json.data);
+      setOpenMenuId(null);
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : "Error desconocido");
+      setOpenMenuId(null);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("¿Eliminar este operario DEFINITIVAMENTE?\n\nSe borra de la base de datos y no se puede deshacer. Si solo quiere no aparece en los listados, use Desactivar.")) return;
+    setOpenMenuId(null);
+    try {
+      const res = await fetch(`/api/employees/${id}?hard=true`, { method: "DELETE" });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || "No se pudo eliminar.");
+      setEmployees((prev) => prev.filter((emp) => emp.id !== id));
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : "Error desconocido");
     }
@@ -117,7 +148,7 @@ export default function EmpleadosPage() {
             Gestión de Personal
           </h1>
           <p className="text-xs sm:text-sm text-brand-espresso/70 mt-0.5">
-            Registro, administración y control de colaboradores de Ricuras de Sal y Dulce.
+            Registro, administración y control de operarios de Ricuras de Sal y Dulce.
           </p>
         </div>
 
@@ -127,7 +158,7 @@ export default function EmpleadosPage() {
           className="btn-primary text-xs py-2.5 px-4 flex items-center gap-2 self-start sm:self-auto"
         >
           <UserPlus className="w-4 h-4" />
-          <span>Registrar Colaborador</span>
+          <span>Registrar Operario</span>
         </button>
       </div>
 
@@ -142,7 +173,7 @@ export default function EmpleadosPage() {
         <Search className="w-4 h-4 text-brand-espresso/40 shrink-0" />
         <input
           type="text"
-          placeholder="Buscar colaborador por nombre o cargo..."
+          placeholder="Buscar operario por nombre o cargo..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="w-full text-xs text-brand-espresso placeholder:text-brand-espresso/30 bg-transparent focus:outline-none"
@@ -157,14 +188,14 @@ export default function EmpleadosPage() {
           </div>
         ) : filtered.length === 0 ? (
           <p className="text-xs text-brand-espresso/60 text-center py-12">
-            No hay colaboradores registrados.
+            No hay operarios registrados.
           </p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="border-b border-brand-latte-border bg-brand-latte/40 text-brand-espresso/70 uppercase tracking-wider font-semibold text-[11px]">
-                  <th className="py-3 px-4">Colaborador</th>
+                  <th className="py-3 px-4">Operario</th>
                   <th className="py-3 px-4">Cargo Operativo</th>
                   <th className="py-3 px-4">Contacto Telefónico</th>
                   <th className="py-3 px-4">Estado</th>
@@ -185,10 +216,20 @@ export default function EmpleadosPage() {
                       </span>
                     </td>
                     <td className="py-3.5 px-4">
-                      {emp.is_active ? (
+                      {statusMap(emp) === "activo" ? (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-brand-botanical/10 text-brand-botanical">
                           <CheckCircle2 className="w-3 h-3" />
                           Activo
+                        </span>
+                      ) : statusMap(emp) === "vacaciones" ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-50 text-blue-600">
+                          <Coffee className="w-3 h-3" />
+                          Vacaciones
+                        </span>
+                      ) : statusMap(emp) === "suspendido" ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-50 text-amber-600">
+                          <Pause className="w-3 h-3" />
+                          Suspendido
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-red-50 text-red-600">
@@ -196,16 +237,79 @@ export default function EmpleadosPage() {
                         </span>
                       )}
                     </td>
-                    <td className="py-3.5 px-4 text-right">
-                      {emp.is_active && (
-                        <button
-                          type="button"
-                          onClick={() => handleDeactivate(emp.id)}
-                          className="p-1.5 rounded-lg text-brand-espresso/60 hover:text-red-600 hover:bg-red-50 transition-colors"
-                          aria-label="Desactivar colaborador"
-                        >
-                          <MoreVertical className="w-4 h-4" />
-                        </button>
+                    <td className="py-3.5 px-4 text-right relative">
+                      <button
+                        type="button"
+                        onClick={() => setOpenMenuId(openMenuId === emp.id ? null : emp.id)}
+                        className="p-1.5 rounded-lg text-brand-espresso/60 hover:text-brand-terracotta hover:bg-brand-latte/60 transition-colors"
+                        aria-label="Acciones del operario"
+                      >
+                        <MoreVertical className="w-4 h-4" />
+                      </button>
+
+                      {openMenuId === emp.id && (
+                        <>
+                          <div
+                            className="fixed inset-0 z-40"
+                            onClick={() => setOpenMenuId(null)}
+                          />
+                          <div className="absolute right-4 top-2 z-50 w-44 bg-white rounded-xl border border-brand-latte-border shadow-lg py-1 text-left">
+                            {emp.is_active && emp.status === "activo" && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (confirm("¿Enviar a vacaciones? Puede reactivarlo después.")) {
+                                      handleStatus(emp.id, true, "vacaciones");
+                                    } else setOpenMenuId(null);
+                                  }}
+                                  className="w-full px-3 py-2 text-[11px] font-semibold text-brand-espresso hover:bg-brand-latte/40 flex items-center gap-2"
+                                >
+                                  <Coffee className="w-3.5 h-3.5 text-blue-500" /> Vacaciones
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (confirm("¿Suspender este operario?")) {
+                                      handleStatus(emp.id, true, "suspendido");
+                                    } else setOpenMenuId(null);
+                                  }}
+                                  className="w-full px-3 py-2 text-[11px] font-semibold text-brand-espresso hover:bg-brand-latte/40 flex items-center gap-2"
+                                >
+                                  <Pause className="w-3.5 h-3.5 text-amber-500" /> Suspender
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (confirm("¿Desactivar este operario? Conserva su historial.")) {
+                                      handleStatus(emp.id, false, "activo");
+                                    } else setOpenMenuId(null);
+                                  }}
+                                  className="w-full px-3 py-2 text-[11px] font-semibold text-brand-espresso hover:bg-brand-latte/40 flex items-center gap-2"
+                                >
+                                  <Power className="w-3.5 h-3.5 text-brand-espresso/60" /> Desactivar
+                                </button>
+                              </>
+                            )}
+                            {(!emp.is_active || emp.status !== "activo") && (
+                              <button
+                                type="button"
+                                onClick={() => handleStatus(emp.id, true, "activo")}
+                                className="w-full px-3 py-2 text-[11px] font-semibold text-brand-espresso hover:bg-brand-latte/40 flex items-center gap-2"
+                              >
+                                <RotateCcw className="w-3.5 h-3.5 text-brand-botanical" /> Reactivar
+                              </button>
+                            )}
+                            <div className="my-1 border-t border-brand-latte-border" />
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(emp.id)}
+                              className="w-full px-3 py-2 text-[11px] font-semibold text-red-600 hover:bg-red-50 flex items-center gap-2"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" /> Eliminar
+                            </button>
+                          </div>
+                        </>
                       )}
                     </td>
                   </tr>
@@ -221,7 +325,7 @@ export default function EmpleadosPage() {
           <div className="w-full max-w-md bg-white rounded-2xl border border-brand-latte-border shadow-xl p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="font-serif text-lg font-bold text-brand-espresso">
-                Registrar Colaborador
+                Registrar Operario
               </h2>
               <button
                 type="button"

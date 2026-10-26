@@ -4,5 +4,19 @@ node_modules/
 .env*.local
 npm-debug.log*
 .DS_Store
-.agents 
+
+# Documentación interna y planeación
+.agents/
+docs/
 PLAN_MAESTRO.md
+arquitectura_de_asistencia.md
+Fotos/
+
+# Supabase (migraciones y scripts locales)
+supabase/
+
+# Builds
+tsconfig.tsbuildinfo
+
+# Configuración local de herramientas
+.opencodeignore

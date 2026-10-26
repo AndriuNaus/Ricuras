@@ -28,8 +28,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { name: "Resumen General", href: "/admin", icon: Coffee },
   { name: "Registro de Asistencia", href: "/admin/asistencia", icon: Clock },
-  { name: "Asignación de Tareas", href: "/admin/tareas", icon: ClipboardList },
-  { name: "Asignación v2 (Tabla)", href: "/admin/asignacion-v2", icon: CalendarDays },
+  { name: "Tareas y Asignaciones", href: "/admin/tareas", icon: CalendarDays },
   { name: "Gestión de Personal", href: "/admin/empleados", icon: Users },
   { name: "Reportes & Exportables", href: "/admin/reportes", icon: FileBarChart },
   { name: "Configuración (Superadmin)", href: "/admin/configuracion", icon: Settings },

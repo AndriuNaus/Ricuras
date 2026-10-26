@@ -9,6 +9,7 @@ const updateEmployeeSchema = z.object({
   position: z.string().min(2).max(80).optional(),
   photo_url: z.string().url().optional().nullable(),
   is_active: z.boolean().optional(),
+  status: z.enum(["activo", "suspendido", "vacaciones"]).optional(),
 });
 
 async function requireAdmin() {
@@ -29,7 +30,7 @@ async function requireAdmin() {
     return { supabase, error: "No autorizado" as const };
   }
 
-  return { supabase, error: null };
+  return { supabase, error: null, role: profile.role };
 }
 
 export async function GET(
@@ -93,14 +94,44 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: { id: string } }
 ) {
-  const { supabase, error } = await requireAdmin();
+  const { supabase, error, role } = await requireAdmin();
   if (error) {
     return NextResponse.json({ error }, { status: error === "No autenticado" ? 401 : 403 });
   }
 
+  // Eliminación definitiva solo superadmin: /api/employees/[id]?hard=true
+  const url = new URL(request.url);
+  if (url.searchParams.get("hard") === "true") {
+    if (role !== "superadmin") {
+      return NextResponse.json(
+        { error: "Solo un superadministrador puede eliminar operarios definitivamente" },
+        { status: 403 }
+      );
+    }
+
+    const { error: dbError } = await supabase
+      .from("employees")
+      .delete()
+      .eq("id", params.id);
+
+    if (dbError) {
+      return NextResponse.json(
+        {
+          error:
+            dbError.code === "23503"
+              ? "No se puede eliminar: tiene marcaciones o tareas registradas. Usa Desactivar en su lugar."
+              : dbError.message,
+        },
+        { status: 500 }
+      );
+    }
+    return NextResponse.json({ data: { id: params.id, deleted: true } });
+  }
+
+  // Desactivación (soft): conserva el historial
   const { data, error: dbError } = await supabase
     .from("employees")
     .update({ is_active: false })

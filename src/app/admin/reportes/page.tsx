@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { FileBarChart, Download, FileSpreadsheet, FileText, Calendar, Filter, ChevronDown } from "lucide-react";
+import { FileBarChart, Download, FileSpreadsheet, FileText, Eye } from "lucide-react";
+import { openSchedulePdfPreview, filterByRange, rangeDates, ScheduleCardData } from "@/lib/schedule-pdf";
+import { fetchAssignments } from "@/lib/assignments";
 
 interface AttendanceRecord {
   id: string;
@@ -21,6 +23,12 @@ export default function ReportesPage() {
   const [exportType, setExportType] = useState<"asistencia" | "turnos">("asistencia");
   const [period, setPeriod] = useState<"dia" | "semana" | "mes">("mes");
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [assignPeriod, setAssignPeriod] = useState<"dia" | "semana" | "mes">("semana");
+  const [assignDate, setAssignDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [assignMonth, setAssignMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  });
   const [loading, setLoading] = useState(false);
   const [reportData, setReportData] = useState<AttendanceRecord[]>([]);
 
@@ -461,22 +469,111 @@ export default function ReportesPage() {
               Historial de Asignaciones y Turnos
             </h3>
             <p className="text-xs text-brand-espresso/70 leading-relaxed">
-              Resumen de ocupación por zona operativa (Barra, Piso 1, Cocina, Terraza y Sede Pádel) para balancear la carga de trabajo.
+              Vista previa en PDF con tarjetas de horario (como en Asignación v2) para enviar a los operarios por mensajería o imprimir.
             </p>
 
-            <div className="pt-2">
-              <label className="block text-xs font-semibold uppercase tracking-wider text-brand-espresso mb-1">
-                Tipo de Turno
-              </label>
-              <select className="w-full p-2.5 rounded-lg border border-brand-latte-border bg-brand-latte/30 text-xs text-brand-espresso font-medium">
-                <option>Todos los turnos y zonas</option>
-                <option>Solo Sede Matriz San Sebastián</option>
-                <option>Solo Sede Loja Pádel Club</option>
-              </select>
+            <div className="space-y-3 pt-2">
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-brand-espresso mb-1">
+                  Período
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {(["dia", "semana", "mes"] as const).map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => setAssignPeriod(p)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                        assignPeriod === p
+                          ? "bg-brand-mint-dark text-white shadow-sm"
+                          : "bg-brand-latte/50 text-brand-espresso/70 hover:bg-brand-latte"
+                      }`}
+                    >
+                      {p === "dia" ? "Día" : p === "semana" ? "Semana" : "Mes"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {(assignPeriod === "dia" || assignPeriod === "semana") && (
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-brand-espresso mb-1">
+                    {assignPeriod === "dia" ? "Fecha" : "Semana (cualquier día)"}
+                  </label>
+                  <input
+                    type="date"
+                    value={assignDate}
+                    onChange={(e) => setAssignDate(e.target.value)}
+                    className="w-full p-2.5 rounded-lg border border-brand-latte-border bg-brand-latte/30 text-xs text-brand-espresso font-medium"
+                  />
+                </div>
+              )}
+
+              {assignPeriod === "mes" && (
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-brand-espresso mb-1">
+                    Mes
+                  </label>
+                  <input
+                    type="month"
+                    value={assignMonth}
+                    onChange={(e) => setAssignMonth(e.target.value)}
+                    className="w-full p-2.5 rounded-lg border border-brand-latte-border bg-brand-latte/30 text-xs text-brand-espresso font-medium"
+                  />
+                </div>
+              )}
+
+              <p className="text-[11px] text-brand-espresso/50">
+                Usa las asignaciones guardadas en Asignación v2. Si ves vacío, crea turnos primero allí.
+              </p>
             </div>
           </div>
 
           <div className="pt-4 border-t border-brand-latte-border flex flex-wrap gap-3">
+            <button
+              onClick={async () => {
+                try {
+                  const dateStr = assignPeriod === "mes" ? assignMonth : assignDate;
+                  const rangeLabel = assignPeriod === "dia"
+                    ? new Date(assignDate + "T12:00:00").toLocaleDateString("es-EC", { weekday: "long", day: "2-digit", month: "long" })
+                    : assignPeriod === "semana"
+                      ? "Semana"
+                      : new Date(assignMonth + "-01T12:00:00").toLocaleDateString("es-EC", { month: "long", year: "numeric" });
+                  const dates = rangeDates(dateStr, assignPeriod);
+                  let range: ScheduleCardData[] = [];
+                  if (assignPeriod === "mes") {
+                    range = await fetchAssignments({ month: assignMonth });
+                  } else if (assignPeriod === "dia") {
+                    range = await fetchAssignments({ day: assignDate });
+                  } else {
+                    range = await fetchAssignments({ from: dates[0], to: dates[dates.length - 1] });
+                  }
+                  if (!range.length) {
+                    alert("No hay asignaciones en la base de datos para ese rango. Créalas en Asignación v2.");
+                    return;
+                  }
+                  openSchedulePdfPreview(range, `${rangeLabel} — Horario de operarios`);
+                } catch {
+                  // Fallback local si la BD no responde
+                  try {
+                    const stored: ScheduleCardData[] = JSON.parse(localStorage.getItem("ricuras_assignments_v2") ?? "[]");
+                    const dateStr = assignPeriod === "mes" ? assignMonth : assignDate;
+                    const range = filterByRange(stored, dateStr, assignPeriod);
+                    if (!range.length) {
+                      alert("No hay asignaciones guardadas para ese rango. Créalas en Asignación v2.");
+                      return;
+                    }
+                    openSchedulePdfPreview(range, "Horario de operarios (respaldo local)");
+                  } catch {
+                    alert("No se pudo leer las asignaciones.");
+                  }
+                }
+              }}
+              type="button"
+              className="btn-primary text-xs py-2.5 px-4 flex items-center gap-2"
+            >
+              <Eye className="w-4 h-4" />
+              <span>Vista previa PDF (tarjetas)</span>
+            </button>
             <button
               onClick={() => handleExport("excel")}
               type="button"
