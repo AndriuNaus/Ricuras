@@ -25,7 +25,7 @@ export async function GET() {
   const { supabase, error } = await requireAdmin();
   if (error) return NextResponse.json({ error }, { status: error === "No autenticado" ? 401 : 403 });
   const { data, error: dbError } = await supabase.from("zones").select("*").order("sort_order", { ascending: true });
-  if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 });
+  if (dbError) { console.error("DB error:", dbError); return NextResponse.json({ error: "Error interno del servidor." }, { status: 500 }); }
   return NextResponse.json({ data });
 }
 
@@ -37,6 +37,6 @@ export async function POST(request: Request) {
   const parsed = zoneSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Datos inválidos", details: parsed.error.flatten() }, { status: 400 });
   const { data, error: dbError } = await supabase.from("zones").insert(parsed.data).select().single();
-  if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 });
+  if (dbError) { console.error("DB error:", dbError); return NextResponse.json({ error: "Error interno del servidor." }, { status: 500 }); }
   return NextResponse.json({ data }, { status: 201 });
 }

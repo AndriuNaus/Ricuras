@@ -9,6 +9,19 @@ export interface ScheduleCardData {
   isDayOff?: boolean;
 }
 
+export function escapeHtml(unsafe: string | null | undefined): string {
+  return (unsafe ?? "").replace(/[&<>"']/g, (m) => {
+    switch (m) {
+      case "&": return "&amp;";
+      case "<": return "&lt;";
+      case ">": return "&gt;";
+      case '"': return "&quot;";
+      case "'": return "&#039;";
+      default: return m;
+    }
+  });
+}
+
 export function shadeColor(hex: string, percent: number) {
   const clean = hex.replace("#", "");
   const num = parseInt(clean.length === 3 ? clean.split("").map((c) => c + c).join("") : clean, 16);
@@ -85,13 +98,13 @@ export function openSchedulePdfPreview(assignments: ScheduleCardData[], rangeLab
               <div class="card-top">
                 <span class="avatar">${dayOff ? "☀" : initials(emp)}</span>
                 <div class="min0">
-                  <p class="emp">${emp}</p>
-                  <p class="zone">${dayOff ? "Día libre" : first.zoneName}</p>
+                  <p class="emp">${escapeHtml(emp)}</p>
+                  <p class="zone">${escapeHtml(dayOff ? "Día libre" : first.zoneName)}</p>
                 </div>
                 ${dayOff ? `<span class="badge">LIBRE</span>` : ""}
               </div>
               ${dayOff ? "" : `<div class="pills">${pills}</div>`}
-              ${first.notes && !dayOff ? `<p class="notes">${first.notes}</p>` : ""}
+              ${first.notes && !dayOff ? `<p class="notes">${escapeHtml(first.notes)}</p>` : ""}
             </div>`;
         })
         .join("");

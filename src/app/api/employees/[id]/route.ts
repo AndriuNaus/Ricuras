@@ -49,7 +49,8 @@ export async function GET(
     .single();
 
   if (dbError) {
-    return NextResponse.json({ error: dbError.message }, { status: 404 });
+    console.error("DB error:", dbError);
+    return NextResponse.json({ error: "Recurso no encontrado." }, { status: 404 });
   }
 
   return NextResponse.json({ data });
@@ -87,7 +88,8 @@ export async function PUT(
     .single();
 
   if (dbError) {
-    return NextResponse.json({ error: dbError.message }, { status: 500 });
+    console.error("DB error:", dbError);
+    return NextResponse.json({ error: "Error interno del servidor." }, { status: 500 });
   }
 
   return NextResponse.json({ data });
@@ -123,7 +125,7 @@ export async function DELETE(
           error:
             dbError.code === "23503"
               ? "No se puede eliminar: tiene marcaciones o tareas registradas. Usa Desactivar en su lugar."
-              : dbError.message,
+              : "Error interno del servidor.",
         },
         { status: 500 }
       );
@@ -140,7 +142,8 @@ export async function DELETE(
     .single();
 
   if (dbError) {
-    return NextResponse.json({ error: dbError.message }, { status: 500 });
+    console.error("DB error:", dbError);
+    return NextResponse.json({ error: "Error interno del servidor." }, { status: 500 });
   }
 
   return NextResponse.json({ data });

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { FileBarChart, Download, FileSpreadsheet, FileText, Eye } from "lucide-react";
-import { openSchedulePdfPreview, filterByRange, rangeDates, ScheduleCardData } from "@/lib/schedule-pdf";
+import { openSchedulePdfPreview, filterByRange, rangeDates, ScheduleCardData, escapeHtml } from "@/lib/schedule-pdf";
 import { fetchAssignments } from "@/lib/assignments";
 
 interface AttendanceRecord {
@@ -286,8 +286,8 @@ export default function ReportesPage() {
                 <div class="flex items-center gap-3">
                   <div class="card-avatar">${initials(emp)}</div>
                   <div class="card-info">
-                    <div class="card-name">${emp}</div>
-                    <div class="card-zone">${data.method}</div>
+                    <div class="card-name">${escapeHtml(emp)}</div>
+                    <div class="card-zone">${escapeHtml(data.method)}</div>
                   </div>
                 </div>
               </div>
@@ -310,7 +310,7 @@ export default function ReportesPage() {
     <h2 class="section-title">Detalle Completo por Operario</h2>
     ${Object.entries(groupedByEmp).map(([emp, records]) => `
       <div class="employee-section" style="page-break-inside: avoid; margin-bottom: 20px;">
-        <div style="font-weight: 700; font-size: 12px; color: #2B1B17; padding: 10px 0 6px; border-bottom: 2px solid #E8D5C4; margin-bottom: 8px;">${emp}</div>
+        <div style="font-weight: 700; font-size: 12px; color: #2B1B17; padding: 10px 0 6px; border-bottom: 2px solid #E8D5C4; margin-bottom: 8px;">${escapeHtml(emp)}</div>
         <table class="records-table">
           <thead>
             <tr>

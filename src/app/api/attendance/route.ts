@@ -46,6 +46,13 @@ export async function GET(request: Request) {
   const from = url.searchParams.get("from");
   const to = url.searchParams.get("to");
 
+  const dateRe = /^\d{4}-\d{2}-\d{2}$/;
+  const monthRe = /^\d{4}-\d{2}$/;
+  if (date && !dateRe.test(date)) return NextResponse.json({ error: "Formato de fecha inválido (YYYY-MM-DD)" }, { status: 400 });
+  if (month && !monthRe.test(month)) return NextResponse.json({ error: "Formato de mes inválido (YYYY-MM)" }, { status: 400 });
+  if (from && !dateRe.test(from)) return NextResponse.json({ error: "Formato de fecha inválido (YYYY-MM-DD)" }, { status: 400 });
+  if (to && !dateRe.test(to)) return NextResponse.json({ error: "Formato de fecha inválido (YYYY-MM-DD)" }, { status: 400 });
+
   let query = supabase
     .from("attendance_records")
     .select("*, employees(full_name, position)")
@@ -64,7 +71,7 @@ export async function GET(request: Request) {
   }
 
   const { data, error: dbError } = await query;
-  if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 });
+  if (dbError) { console.error("DB error:", dbError); return NextResponse.json({ error: "Error interno del servidor." }, { status: 500 }); }
 
   return NextResponse.json({ data });
 }
@@ -93,7 +100,7 @@ export async function POST(request: Request) {
     .select("*, employees(full_name, position)")
     .single();
 
-  if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 });
+  if (dbError) { console.error("DB error:", dbError); return NextResponse.json({ error: "Error interno del servidor." }, { status: 500 }); }
 
   return NextResponse.json({ data }, { status: 201 });
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { createClient } from "@/lib/supabase/client";
 import {
   Clock,
   Camera,
@@ -165,6 +166,33 @@ export default function AsistenciaPage() {
     const employee = employees.find((e) => e.id === employeeId);
     if (!employee) return;
 
+    // Si la foto viene en base64 (cámara), subirla a Supabase Storage primero
+    // y guardar solo la URL pública para no inflar la base de datos.
+    let photoUrl: string | null = photo || null;
+    if (photo && photo.startsWith("data:")) {
+      try {
+        const supabase = createClient();
+        const blobRes = await fetch(photo);
+        const blob = await blobRes.blob();
+        const ext = photo.includes("image/png") ? "png" : "jpg";
+        const path = `attendance/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from("attendance-photos")
+          .upload(path, blob, { contentType: blob.type || "image/jpeg", upsert: false });
+        if (uploadError) throw uploadError;
+        const { data: pub } = supabase.storage.from("attendance-photos").getPublicUrl(uploadData.path);
+        photoUrl = pub.publicUrl;
+      } catch (err) {
+        console.error("Error subiendo foto a Storage:", err);
+        setFeedback({
+          message: "No se pudo subir la foto a Storage. Verifica el bucket 'attendance-photos' y sus políticas. Marcación cancelada.",
+          type: "error",
+        });
+        setTimeout(() => setFeedback(null), 4500);
+        return;
+      }
+    }
+
     try {
       const res = await fetch("/api/attendance", {
         method: "POST",
@@ -173,7 +201,7 @@ export default function AsistenciaPage() {
           employee_id: employeeId,
           record_type: type,
           method: regMethod,
-          photo_url: photo || null,
+          photo_url: photoUrl,
         }),
       });
       const json = await res.json();
@@ -189,7 +217,7 @@ export default function AsistenciaPage() {
         timestamp: r.timestamp,
         date: d.toLocaleDateString("es-EC", { year: "numeric", month: "2-digit", day: "2-digit" }),
         time: d.toLocaleTimeString("es-EC", { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
-        photoUrl: photo,
+        photoUrl: photoUrl ?? undefined,
         status: "valido",
       };
 
