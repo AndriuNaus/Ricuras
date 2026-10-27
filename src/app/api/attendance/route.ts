@@ -1,43 +1,25 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { requireAdmin, authErrorResponse } from "@/lib/auth";
+import { inicioDiaEC, finDiaEC, ultimoDiaMes } from "@/lib/fecha";
 
 const clockSchema = z.object({
   employee_id: z.string().uuid(),
   record_type: z.enum(["entrada", "salida"]),
   method: z.enum(["manual", "camara", "whatsapp"]).default("manual"),
-  photo_url: z.string().url().optional().nullable(),
-  latitude: z.number().optional().nullable(),
-  longitude: z.number().optional().nullable(),
+  // URL externa (p. ej. Drive del bot) o ruta dentro del bucket privado "attendance-photos"
+  photo_url: z
+    .union([z.string().url(), z.string().regex(/^attendance\/[\w.-]+$/)])
+    .optional()
+    .nullable(),
+  latitude: z.number().min(-90).max(90).optional().nullable(),
+  longitude: z.number().min(-180).max(180).optional().nullable(),
   notes: z.string().max(500).optional().nullable(),
 });
 
-async function requireAdmin() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) return { supabase, error: "No autenticado" as const };
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role, is_active")
-    .eq("id", user.id)
-    .single();
-
-  if (!profile || !profile.is_active || (profile.role !== "admin" && profile.role !== "superadmin")) {
-    return { supabase, error: "No autorizado" as const };
-  }
-
-  return { supabase, error: null, userId: user.id };
-}
-
 export async function GET(request: Request) {
   const { supabase, error } = await requireAdmin();
-  if (error) {
-    return NextResponse.json({ error }, { status: error === "No autenticado" ? 401 : 403 });
-  }
+  if (error) return authErrorResponse(error);
 
   const url = new URL(request.url);
   const employeeId = url.searchParams.get("employee_id");
@@ -59,15 +41,17 @@ export async function GET(request: Request) {
     .order("timestamp", { ascending: false });
 
   if (employeeId) query = query.eq("employee_id", employeeId);
+  // Los días se cortan en hora de Ecuador (UTC-5), no en UTC: así una marcación
+  // de las 21:00 queda en su día y no en el siguiente.
   if (from && to) {
-    query = query.gte("timestamp", `${from}T00:00:00`).lte("timestamp", `${to}T23:59:59`);
+    query = query.gte("timestamp", inicioDiaEC(from)).lte("timestamp", finDiaEC(to));
   } else if (date) {
-    query = query.gte("timestamp", `${date}T00:00:00`).lte("timestamp", `${date}T23:59:59`);
+    query = query.gte("timestamp", inicioDiaEC(date)).lte("timestamp", finDiaEC(date));
   } else if (month) {
-    const [y, m] = month.split("-");
-    const start = `${y}-${m}-01T00:00:00`;
-    const endDate = new Date(Number(y), Number(m), 0).toISOString().slice(0, 10);
-    query = query.gte("timestamp", start).lte("timestamp", `${endDate}T23:59:59`);
+    query = query.gte("timestamp", inicioDiaEC(`${month}-01`)).lte("timestamp", finDiaEC(ultimoDiaMes(month)));
+  } else {
+    // Sin filtro: solo las más recientes, para no descargar toda la tabla
+    query = query.limit(200);
   }
 
   const { data, error: dbError } = await query;
@@ -78,9 +62,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const { supabase, error, userId } = await requireAdmin();
-  if (error) {
-    return NextResponse.json({ error }, { status: error === "No autenticado" ? 401 : 403 });
-  }
+  if (error) return authErrorResponse(error);
 
   let body: unknown;
   try {
@@ -92,6 +74,27 @@ export async function POST(request: Request) {
   const parsed = clockSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: "Datos inválidos", details: parsed.error.flatten() }, { status: 400 });
+  }
+
+  // Regla de negocio: ENTRADA y SALIDA deben alternarse (nunca dos iguales seguidas).
+  // Se compara con la última marcación válida del empleado.
+  const { data: ultima, error: ultimaError } = await supabase
+    .from("attendance_records")
+    .select("record_type")
+    .eq("employee_id", parsed.data.employee_id)
+    .eq("status", "valido")
+    .order("timestamp", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (ultimaError) { console.error("DB error:", ultimaError); return NextResponse.json({ error: "Error interno del servidor." }, { status: 500 }); }
+
+  const esperado = ultima?.record_type === "entrada" ? "salida" : "entrada";
+  if (parsed.data.record_type !== esperado) {
+    return NextResponse.json(
+      { error: `Este empleado ya tiene una ${parsed.data.record_type.toUpperCase()} registrada. Ahora le corresponde marcar ${esperado.toUpperCase()}.` },
+      { status: 409 }
+    );
   }
 
   const { data, error: dbError } = await supabase

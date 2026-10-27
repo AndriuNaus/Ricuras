@@ -1,5 +1,6 @@
 "use client";
 
+import { hoyEC } from "@/lib/fecha";
 import { useState, useEffect } from "react";
 import { CalendarPlus, Copy, GripVertical, Plus, Trash2, X, Sun, Coffee, Eye } from "lucide-react";
 import { openSchedulePdfPreview } from "@/lib/schedule-pdf";
@@ -76,7 +77,7 @@ function getMonthWeeks(dateStr: string) {
 
 export default function AsignacionV2Page() {
   const [view, setView] = useState<"dia" | "semana" | "mes">("semana");
-  const [baseDate, setBaseDate] = useState(toISO(new Date()));
+  const [baseDate, setBaseDate] = useState(hoyEC());
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [zones, setZones] = useState<Zone[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>(() => {
@@ -139,7 +140,7 @@ export default function AsignacionV2Page() {
 
   const selectView = (v: "dia" | "semana" | "mes") => {
     setView(v);
-    if (v === "semana") setBaseDate(toISO(new Date()));
+    if (v === "semana") setBaseDate(hoyEC());
   };
 
   const buildAssignments = (date: string): Assignment[] => {

@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { FileBarChart, Download, FileSpreadsheet, FileText, Eye } from "lucide-react";
+import { hoyEC, fechaEC, ultimoDiaMes, ZONA_HORARIA } from "@/lib/fecha";
 import { openSchedulePdfPreview, filterByRange, rangeDates, ScheduleCardData, escapeHtml } from "@/lib/schedule-pdf";
 import { fetchAssignments } from "@/lib/assignments";
 
 interface AttendanceRecord {
   id: string;
-  employeeId: string;
+  employee_id: string;
   record_type: "entrada" | "salida";
   method: string;
   timestamp: string;
@@ -16,20 +17,16 @@ interface AttendanceRecord {
 }
 
 export default function ReportesPage() {
-  const [selectedMonth, setSelectedMonth] = useState(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  });
+  const [selectedMonth, setSelectedMonth] = useState(() => hoyEC().slice(0, 7));
   const [exportType, setExportType] = useState<"asistencia" | "turnos">("asistencia");
   const [period, setPeriod] = useState<"dia" | "semana" | "mes">("mes");
-  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [selectedDate, setSelectedDate] = useState(() => hoyEC());
   const [assignPeriod, setAssignPeriod] = useState<"dia" | "semana" | "mes">("semana");
-  const [assignDate, setAssignDate] = useState(() => new Date().toISOString().split("T")[0]);
-  const [assignMonth, setAssignMonth] = useState(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  });
+  const [assignDate, setAssignDate] = useState(() => hoyEC());
+  const [assignMonth, setAssignMonth] = useState(() => hoyEC().slice(0, 7));
   const [loading, setLoading] = useState(false);
+  // Rango (YYYY-MM-DD) del período mostrado; lo reutiliza la exportación a Excel
+  const [rango, setRango] = useState<{ from: string; to: string } | null>(null);
   const [reportData, setReportData] = useState<AttendanceRecord[]>([]);
 
   const fetchData = async (dateRange: { from: string; to: string }) => {
@@ -51,19 +48,22 @@ export default function ReportesPage() {
     if (period === "mes") {
       const [year, month] = selectedMonth.split("-").map(Number);
       const from = `${year}-${String(month).padStart(2, "0")}-01`;
-      const to = new Date(year, month, 0).toISOString().split("T")[0];
+      const to = ultimoDiaMes(selectedMonth);
+      setRango({ from, to });
       fetchData({ from, to });
     } else if (period === "semana") {
       const d = new Date(selectedDate + "T12:00:00");
       const day = d.getDay();
       const diff = d.getDate() - day + (day === 0 ? -6 : 1);
       const monday = new Date(d.setDate(diff));
-      const from = monday.toISOString().split("T")[0];
+      const from = fechaEC(monday);
       const sunday = new Date(monday);
       sunday.setDate(monday.getDate() + 6);
-      const to = sunday.toISOString().split("T")[0];
+      const to = fechaEC(sunday);
+      setRango({ from, to });
       fetchData({ from, to });
     } else {
+      setRango({ from: selectedDate, to: selectedDate });
       fetchData({ from: selectedDate, to: selectedDate });
     }
   }, [selectedMonth, period, selectedDate]);
@@ -77,30 +77,33 @@ export default function ReportesPage() {
       const monday = new Date(d.setDate(diff));
       const sunday = new Date(monday);
       sunday.setDate(monday.getDate() + 6);
-      return `${monday.toLocaleDateString("es-EC", { day: "2-digit", month: "short" })} – ${sunday.toLocaleDateString("es-EC", { day: "2-digit", month: "short", year: "numeric" })}`;
+      return `${monday.toLocaleDateString("es-EC", { timeZone: ZONA_HORARIA, day: "2-digit", month: "short" })} – ${sunday.toLocaleDateString("es-EC", { timeZone: ZONA_HORARIA, day: "2-digit", month: "short", year: "numeric" })}`;
     }
-    return new Date(selectedDate + "T12:00:00").toLocaleDateString("es-EC", { weekday: "short", day: "2-digit", month: "short", year: "numeric" });
+    return new Date(selectedDate + "T12:00:00").toLocaleDateString("es-EC", { timeZone: ZONA_HORARIA, weekday: "short", day: "2-digit", month: "short", year: "numeric" });
   };
 
   const handleExport = async (format: "excel" | "pdf") => {
     if (format === "excel") {
       try {
-        const res = await fetch(`/api/attendance?from=${reportData[0] ? new Date(reportData[0].timestamp).toISOString().split("T")[0] : selectedMonth}&to=${reportData[reportData.length - 1] ? new Date(reportData[reportData.length - 1].timestamp).toISOString().split("T")[0] : selectedMonth}`, { cache: "no-store" });
+        if (!rango) return;
+        const res = await fetch(`/api/attendance?from=${rango.from}&to=${rango.to}`, { cache: "no-store" });
         const json = await res.json();
         if (!res.ok) throw new Error(json?.error || "No se pudo obtener los datos");
 
         const rows = json.data ?? [];
         const header = ["Empleado", "Tipo", "Método", "Fecha/Hora", "Estado"];
-        const csv = [
-          header.join(","),
+        // Separador ";" porque Excel en español usa la coma como decimal,
+        // y BOM (﻿) para que las tildes se vean bien.
+        const csv = "﻿" + [
+          header.join(";"),
           ...rows.map((r: any) =>
             [
               `"${(r.employees?.full_name ?? "").replace(/"/g, '""')}"`,
               r.record_type,
               r.method,
-              new Date(r.timestamp).toLocaleString("es-EC"),
+              new Date(r.timestamp).toLocaleString("es-EC", { timeZone: ZONA_HORARIA }),
               r.status,
-            ].join(",")
+            ].join(";")
           ),
         ].join("\n");
 
@@ -125,7 +128,7 @@ export default function ReportesPage() {
     }
 
     const groupedByDay = reportData.reduce((acc, r) => {
-      const date = new Date(r.timestamp).toISOString().split("T")[0];
+      const date = fechaEC(r.timestamp);
       if (!acc[date]) acc[date] = [];
       acc[date].push(r);
       return acc;
@@ -141,7 +144,7 @@ export default function ReportesPage() {
     const totalRecords = reportData.length;
     const entradas = reportData.filter(r => r.record_type === "entrada").length;
     const salidas = reportData.filter(r => r.record_type === "salida").length;
-    const unicos = new Set(reportData.map(r => r.employeeId)).size;
+    const unicos = new Set(reportData.map(r => r.employee_id)).size;
 
     const initials = (name: string) => name.split(" ").filter(Boolean).slice(0, 2).map(n => n[0]).join("").toUpperCase();
     const shadeColor = (hex: string, percent: number) => {
@@ -238,7 +241,7 @@ export default function ReportesPage() {
     </header>
     <div class="meta">
       <div><strong>Período:</strong> ${getDateRangeLabel()}</div>
-      <div><strong>Generado:</strong> ${new Date().toLocaleString("es-EC")}</div>
+      <div><strong>Generado:</strong> ${new Date().toLocaleString("es-EC", { timeZone: ZONA_HORARIA })}</div>
     </div>
     <div class="summary">
       <div class="summary-card"><div class="value">${unicos}</div><div class="label">Operarios</div></div>
@@ -251,8 +254,8 @@ export default function ReportesPage() {
     <h2 class="section-title">Resumen por Día (Estilo Tarjetas)</h2>
     ${Object.entries(groupedByDay).sort(([a], [b]) => a.localeCompare(b)).map(([date, records]) => {
       const dt = new Date(date + "T12:00:00");
-      const weekday = dt.toLocaleDateString("es-EC", { weekday: "long" });
-      const formattedDate = dt.toLocaleDateString("es-EC", { day: "2-digit", month: "long", year: "numeric" });
+      const weekday = dt.toLocaleDateString("es-EC", { timeZone: ZONA_HORARIA, weekday: "long" });
+      const formattedDate = dt.toLocaleDateString("es-EC", { timeZone: ZONA_HORARIA, day: "2-digit", month: "long", year: "numeric" });
       
       // Agrupar por operario para este día
       const byEmp = records.reduce((acc, r) => {
@@ -277,8 +280,8 @@ export default function ReportesPage() {
             const darkerColor = shadeColor(color, -25);
             const hasEntrada = data.entrada.length > 0;
             const hasSalida = data.salida.length > 0;
-            const entradaTime = hasEntrada ? new Date(data.entrada[0].timestamp).toLocaleTimeString("es-EC", { hour: "2-digit", minute: "2-digit" }) : "--:--";
-            const salidaTime = hasSalida ? new Date(data.salida[0].timestamp).toLocaleTimeString("es-EC", { hour: "2-digit", minute: "2-digit" }) : "--:--";
+            const entradaTime = hasEntrada ? new Date(data.entrada[0].timestamp).toLocaleTimeString("es-EC", { timeZone: ZONA_HORARIA, hour: "2-digit", minute: "2-digit" }) : "--:--";
+            const salidaTime = hasSalida ? new Date(data.salida[0].timestamp).toLocaleTimeString("es-EC", { timeZone: ZONA_HORARIA, hour: "2-digit", minute: "2-digit" }) : "--:--";
             
             return `
             <div class="card" style="background: linear-gradient(135deg, ${color}, ${darkerColor});">
@@ -327,8 +330,8 @@ export default function ReportesPage() {
               const dt = new Date(r.timestamp);
               return `
               <tr>
-                <td>${dt.toLocaleDateString("es-EC", { day: "2-digit", month: "short", weekday: "short" })}</td>
-                <td>${dt.toLocaleTimeString("es-EC", { hour: "2-digit", minute: "2-digit" })}</td>
+                <td>${dt.toLocaleDateString("es-EC", { timeZone: ZONA_HORARIA, day: "2-digit", month: "short", weekday: "short" })}</td>
+                <td>${dt.toLocaleTimeString("es-EC", { timeZone: ZONA_HORARIA, hour: "2-digit", minute: "2-digit" })}</td>
                 <td class="${r.record_type === "entrada" ? "entrada-badge" : "salida-badge"}">${r.record_type}</td>
                 <td>${r.method}</td>
                 <td class="status-${r.status?.toLowerCase() || "ok"}">${r.status}</td>
@@ -534,10 +537,10 @@ export default function ReportesPage() {
                 try {
                   const dateStr = assignPeriod === "mes" ? assignMonth : assignDate;
                   const rangeLabel = assignPeriod === "dia"
-                    ? new Date(assignDate + "T12:00:00").toLocaleDateString("es-EC", { weekday: "long", day: "2-digit", month: "long" })
+                    ? new Date(assignDate + "T12:00:00").toLocaleDateString("es-EC", { timeZone: ZONA_HORARIA, weekday: "long", day: "2-digit", month: "long" })
                     : assignPeriod === "semana"
                       ? "Semana"
-                      : new Date(assignMonth + "-01T12:00:00").toLocaleDateString("es-EC", { month: "long", year: "numeric" });
+                      : new Date(assignMonth + "-01T12:00:00").toLocaleDateString("es-EC", { timeZone: ZONA_HORARIA, month: "long", year: "numeric" });
                   const dates = rangeDates(dateStr, assignPeriod);
                   let range: ScheduleCardData[] = [];
                   if (assignPeriod === "mes") {

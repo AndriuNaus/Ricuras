@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { requireAdmin, authErrorResponse } from "@/lib/auth";
 
 const timeRe = /^\d{2}:\d{2}(:\d{2})?$/;
 const dateRe = /^\d{4}-\d{2}-\d{2}$/;
@@ -24,32 +24,9 @@ const patchSchema =assignmentPayloadSchema.partial().extend({
   id: z.string().uuid(),
 });
 
-async function requireAdmin() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) return { supabase, error: "No autenticado" as const };
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role, is_active")
-    .eq("id", user.id)
-    .single();
-
-  if (!profile || !profile.is_active || (profile.role !== "admin" && profile.role !== "superadmin")) {
-    return { supabase, error: "No autorizado" as const };
-  }
-
-  return { supabase, error: null, userId: user.id };
-}
-
 export async function GET(request: Request) {
   const { supabase, error } = await requireAdmin();
-  if (error) {
-    return NextResponse.json({ error }, { status: error === "No autenticado" ? 401 : 403 });
-  }
+  if (error) return authErrorResponse(error);
 
   const url = new URL(request.url);
   const day = url.searchParams.get("day");
@@ -89,9 +66,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const { supabase, error, userId } = await requireAdmin();
-  if (error) {
-    return NextResponse.json({ error }, { status: error === "No autenticado" ? 401 : 403 });
-  }
+  if (error) return authErrorResponse(error);
 
   let body: unknown;
   try {
@@ -120,9 +95,7 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   const { supabase, error } = await requireAdmin();
-  if (error) {
-    return NextResponse.json({ error }, { status: error === "No autenticado" ? 401 : 403 });
-  }
+  if (error) return authErrorResponse(error);
 
   let body: unknown;
   try {
@@ -155,13 +128,11 @@ export async function PATCH(request: Request) {
 
 export async function DELETE(request: Request) {
   const { supabase, error } = await requireAdmin();
-  if (error) {
-    return NextResponse.json({ error }, { status: error === "No autenticado" ? 401 : 403 });
-  }
+  if (error) return authErrorResponse(error);
 
   const url = new URL(request.url);
   const id = url.searchParams.get("id");
-  if (!id) return NextResponse.json({ error: "Falta el parámetro id" }, { status: 400 });
+  if (!id || !z.string().uuid().safeParse(id).success) return NextResponse.json({ error: "Falta el parámetro id o no es válido" }, { status: 400 });
 
   const { error: dbError } = await supabase
     .from("task_assignments")

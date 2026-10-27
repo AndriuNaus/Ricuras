@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { requireAdmin, authErrorResponse } from "@/lib/auth";
 
 const zoneSchema = z.object({
   name: z.string().min(2).max(80),
@@ -10,20 +10,9 @@ const zoneSchema = z.object({
   is_active: z.boolean().optional(),
 });
 
-async function requireAdmin() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { supabase, error: "No autenticado" as const };
-  const { data: profile } = await supabase.from("profiles").select("role,is_active").eq("id", user.id).single();
-  if (!profile || !profile.is_active || (profile.role !== "admin" && profile.role !== "superadmin")) {
-    return { supabase, error: "No autorizado" as const };
-  }
-  return { supabase, error: null, userId: user.id };
-}
-
 export async function GET() {
   const { supabase, error } = await requireAdmin();
-  if (error) return NextResponse.json({ error }, { status: error === "No autenticado" ? 401 : 403 });
+  if (error) return authErrorResponse(error);
   const { data, error: dbError } = await supabase.from("zones").select("*").order("sort_order", { ascending: true });
   if (dbError) { console.error("DB error:", dbError); return NextResponse.json({ error: "Error interno del servidor." }, { status: 500 }); }
   return NextResponse.json({ data });
@@ -31,7 +20,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const { supabase, error } = await requireAdmin();
-  if (error) return NextResponse.json({ error }, { status: error === "No autenticado" ? 401 : 403 });
+  if (error) return authErrorResponse(error);
   let body: unknown;
   try { body = await request.json(); } catch { return NextResponse.json({ error: "JSON inválido" }, { status: 400 }); }
   const parsed = zoneSchema.safeParse(body);

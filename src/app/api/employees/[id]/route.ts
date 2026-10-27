@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { requireAdmin, authErrorResponse } from "@/lib/auth";
 
 const updateEmployeeSchema = z.object({
   full_name: z.string().min(2).max(120).optional(),
@@ -12,35 +12,12 @@ const updateEmployeeSchema = z.object({
   status: z.enum(["activo", "suspendido", "vacaciones"]).optional(),
 });
 
-async function requireAdmin() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) return { supabase, error: "No autenticado" as const };
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role, is_active")
-    .eq("id", user.id)
-    .single();
-
-  if (!profile || !profile.is_active || (profile.role !== "admin" && profile.role !== "superadmin")) {
-    return { supabase, error: "No autorizado" as const };
-  }
-
-  return { supabase, error: null, role: profile.role };
-}
-
 export async function GET(
   _request: Request,
   { params }: { params: { id: string } }
 ) {
   const { supabase, error } = await requireAdmin();
-  if (error) {
-    return NextResponse.json({ error }, { status: error === "No autenticado" ? 401 : 403 });
-  }
+  if (error) return authErrorResponse(error);
 
   const { data, error: dbError } = await supabase
     .from("employees")
@@ -61,9 +38,7 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   const { supabase, error } = await requireAdmin();
-  if (error) {
-    return NextResponse.json({ error }, { status: error === "No autenticado" ? 401 : 403 });
-  }
+  if (error) return authErrorResponse(error);
 
   let body: unknown;
   try {
@@ -100,9 +75,7 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   const { supabase, error, role } = await requireAdmin();
-  if (error) {
-    return NextResponse.json({ error }, { status: error === "No autenticado" ? 401 : 403 });
-  }
+  if (error) return authErrorResponse(error);
 
   // Eliminación definitiva solo superadmin: /api/employees/[id]?hard=true
   const url = new URL(request.url);

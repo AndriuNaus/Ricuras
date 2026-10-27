@@ -14,6 +14,9 @@ export async function updateSession(request: NextRequest) {
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseKey) {
+    if (pathname.startsWith("/api")) {
+      return NextResponse.json({ error: "Servicio no disponible." }, { status: 503 });
+    }
     if (pathname === "/login") {
       return new NextResponse("Configuración del servidor incompleta. Contacta al administrador.", { status: 503 });
     }

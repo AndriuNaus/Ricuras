@@ -2,6 +2,8 @@
 
 import { useState, useRef, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { ZONA_HORARIA } from "@/lib/fecha";
+import { fotoSrc } from "@/lib/fotos";
 import {
   Clock,
   Camera,
@@ -28,6 +30,7 @@ interface EmployeeMock {
 
 interface AttendanceRecordMock {
   id: string;
+  employeeId: string;
   employeeName: string;
   type: "entrada" | "salida";
   method: "manual" | "camara" | "whatsapp";
@@ -37,14 +40,6 @@ interface AttendanceRecordMock {
   photoUrl?: string;
   status: "valido" | "rechazado";
 }
-
-const INITIAL_EMPLOYEES: EmployeeMock[] = [
-  { id: "1", name: "Carlos Jaramillo", position: "Barista Principal", lastStatus: "salida" },
-  { id: "2", name: "María Elena Cueva", position: "Atención en Salón (Piso 1)", lastStatus: "salida" },
-  { id: "3", name: "Luis Fernando Morocho", position: "Jefe de Cocina", lastStatus: "salida" },
-  { id: "4", name: "Andrea Villamagua", position: "Repostería & Cafetería", lastStatus: "salida" },
-  { id: "5", name: "Juan Pablo Soto", position: "Atención Six Wellness / Pádel", lastStatus: "salida" },
-];
 
 export default function AsistenciaPage() {
   const [activeTab, setActiveTab] = useState<"marcar" | "tabla">("marcar");
@@ -81,17 +76,27 @@ export default function AsistenciaPage() {
       const d = new Date(r.timestamp);
       return {
         id: r.id,
+        employeeId: r.employee_id,
         employeeName: r.employees?.full_name ?? "Empleado",
         type: r.record_type,
         method: r.method,
         timestamp: r.timestamp,
-        date: d.toLocaleDateString("es-EC", { year: "numeric", month: "2-digit", day: "2-digit" }),
-        time: d.toLocaleTimeString("es-EC", { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+        date: d.toLocaleDateString("es-EC", { timeZone: ZONA_HORARIA, year: "numeric", month: "2-digit", day: "2-digit" }),
+        time: d.toLocaleTimeString("es-EC", { timeZone: ZONA_HORARIA, hour: "2-digit", minute: "2-digit", second: "2-digit" }),
         photoUrl: r.photo_url,
         status: r.status,
       };
     });
     setRecords(mapped);
+
+    // Estado real de cada empleado según su última marcación válida
+    // (los registros llegan del más reciente al más antiguo).
+    setEmployees((prev) =>
+      prev.map((emp) => {
+        const ultima = mapped.find((r) => r.employeeId === emp.id && r.status === "valido");
+        return ultima ? { ...emp, lastStatus: ultima.type, lastTime: ultima.time } : emp;
+      })
+    );
   };
 
   useEffect(() => {
@@ -180,8 +185,9 @@ export default function AsistenciaPage() {
           .from("attendance-photos")
           .upload(path, blob, { contentType: blob.type || "image/jpeg", upsert: false });
         if (uploadError) throw uploadError;
-        const { data: pub } = supabase.storage.from("attendance-photos").getPublicUrl(uploadData.path);
-        photoUrl = pub.publicUrl;
+        // Se guarda solo la ruta: el bucket es privado y la foto se ve
+        // a través de /api/attendance/foto (solo admins, link temporal).
+        photoUrl = uploadData.path;
       } catch (err) {
         console.error("Error subiendo foto a Storage:", err);
         setFeedback({
@@ -211,12 +217,13 @@ export default function AsistenciaPage() {
       const d = new Date(r.timestamp);
       const newRecord: AttendanceRecordMock = {
         id: r.id,
+        employeeId,
         employeeName: employee.name,
         type,
         method: regMethod,
         timestamp: r.timestamp,
-        date: d.toLocaleDateString("es-EC", { year: "numeric", month: "2-digit", day: "2-digit" }),
-        time: d.toLocaleTimeString("es-EC", { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+        date: d.toLocaleDateString("es-EC", { timeZone: ZONA_HORARIA, year: "numeric", month: "2-digit", day: "2-digit" }),
+        time: d.toLocaleTimeString("es-EC", { timeZone: ZONA_HORARIA, hour: "2-digit", minute: "2-digit", second: "2-digit" }),
         photoUrl: photoUrl ?? undefined,
         status: "valido",
       };
@@ -648,7 +655,7 @@ export default function AsistenciaPage() {
                           <div className="w-8 h-8 rounded-lg overflow-hidden border border-brand-latte-border bg-black">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
-                              src={rec.photoUrl}
+                              src={fotoSrc(rec.photoUrl)}
                               alt="Comprobante"
                               className="w-full h-full object-cover"
                             />

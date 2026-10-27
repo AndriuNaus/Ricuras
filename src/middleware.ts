@@ -6,10 +6,7 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    "/admin/:path*",
-    "/dashboard/:path*",
-    "/login",
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
-  ],
+  // Solo las rutas que usan sesión. La landing pública (/) no pasa por aquí:
+  // así carga más rápido y no depende de que Supabase responda.
+  matcher: ["/admin/:path*", "/dashboard/:path*", "/login", "/api/:path*"],
 };
