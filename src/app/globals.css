@@ -38,3 +38,8 @@ h1, h2, h3, h4, .font-editorial {
 .btn-secondary {
   @apply inline-flex items-center justify-center px-6 py-3 text-sm font-medium tracking-wide transition-colors duration-200 border rounded-lg shadow-sm bg-white text-brand-espresso border-brand-latte-border hover:bg-brand-latte-subtle focus:outline-none focus:ring-2 focus:ring-brand-espresso focus:ring-offset-2;
 }
+
+/* Al saltar con los enlaces del menú, que el encabezado fijo no tape el título */
+section[id] {
+  scroll-margin-top: 5rem;
+}
