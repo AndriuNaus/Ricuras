@@ -465,7 +465,7 @@ export default function ReportesPage() {
         {/* Reporte de Asignacion de Tareas */}
         <div className="p-8 rounded-3xl bg-white border border-brand-latte-border shadow-sm space-y-6 flex flex-col justify-between">
           <div className="space-y-3">
-            <div className="w-10 h-10 rounded-xl bg-brand-latte flex items-center justify-center text-brand-mint-dark">
+            <div className="w-10 h-10 rounded-xl bg-brand-latte flex items-center justify-center text-brand-botanical">
               <FileBarChart className="w-5 h-5" />
             </div>
             <h3 className="font-serif font-bold text-xl text-brand-espresso">
@@ -487,7 +487,7 @@ export default function ReportesPage() {
                       onClick={() => setAssignPeriod(p)}
                       className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                         assignPeriod === p
-                          ? "bg-brand-mint-dark text-white shadow-sm"
+                          ? "bg-brand-botanical text-white shadow-sm"
                           : "bg-brand-latte/50 text-brand-espresso/70 hover:bg-brand-latte"
                       }`}
                     >

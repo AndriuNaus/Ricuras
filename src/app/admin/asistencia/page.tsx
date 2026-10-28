@@ -58,7 +58,8 @@ export default function AsistenciaPage() {
     const res = await fetch("/api/employees", { cache: "no-store" });
     const json = await res.json();
     if (!res.ok) return;
-    const mapped: EmployeeMock[] = (json.data ?? []).map((e: any) => ({
+    // Solo el personal activo puede marcar; los desactivados conservan su historial
+    const mapped: EmployeeMock[] = (json.data ?? []).filter((e: any) => e.is_active).map((e: any) => ({
       id: e.id,
       name: e.full_name,
       position: e.position,
@@ -91,10 +92,14 @@ export default function AsistenciaPage() {
 
     // Estado real de cada empleado según su última marcación válida
     // (los registros llegan del más reciente al más antiguo).
+    // Si no es de hoy se muestra también la fecha, para detectar salidas olvidadas.
+    const hoy = new Date().toLocaleDateString("es-EC", { timeZone: ZONA_HORARIA, year: "numeric", month: "2-digit", day: "2-digit" });
     setEmployees((prev) =>
       prev.map((emp) => {
         const ultima = mapped.find((r) => r.employeeId === emp.id && r.status === "valido");
-        return ultima ? { ...emp, lastStatus: ultima.type, lastTime: ultima.time } : emp;
+        if (!ultima) return emp;
+        const lastTime = ultima.date === hoy ? ultima.time : `${ultima.time} del ${ultima.date}`;
+        return { ...emp, lastStatus: ultima.type, lastTime };
       })
     );
   };
