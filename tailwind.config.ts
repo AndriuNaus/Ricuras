@@ -11,6 +11,18 @@ const config: Config = {
       colors: {
         background: "var(--background)",
         foreground: "var(--foreground)",
+        // Identidad visual de Ricuras (tomada del logo e Instagram): verde bosque + dorado
+        ricuras: {
+          verde: "#024B38",
+          noche: "#01352A",
+          dorado: "#CAA256",
+          "dorado-claro": "#D6B46A",
+          crema: "#F6F1E7",
+          arena: "#E7DFCF",
+          carbon: "#1B1B1B",
+          tierra: "#8A6A2C",
+          menta: "#E3EFE8",
+        },
         brand: {
           espresso: {
             DEFAULT: "#2C1A11",
@@ -41,6 +53,9 @@ const config: Config = {
       fontFamily: {
         serif: ["var(--font-serif)", "Georgia", "serif"],
         sans: ["var(--font-sans)", "system-ui", "sans-serif"],
+        display: ["Anton", "Impact", "sans-serif"],
+        body: ["Montserrat", "system-ui", "sans-serif"],
+        script: ["\"Kaushan Script\"", "cursive"],
       },
       borderRadius: {
         "2xl": "1rem",
