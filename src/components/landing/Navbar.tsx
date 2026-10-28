@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Menu, X } from "lucide-react";
+import { Menu, X, ShieldCheck } from "lucide-react";
 import { MarcaRicuras } from "./Botanica";
 
 const ENLACES = [
@@ -32,7 +32,7 @@ export function Navbar() {
           </Link>
 
           {/* Navegación escritorio */}
-          <nav aria-label="Principal" className="hidden lg:flex items-center gap-8 text-sm font-medium">
+          <nav aria-label="Principal" className="hidden lg:flex items-center gap-6 xl:gap-8 text-sm font-medium">
             {ENLACES.map((e) => (
               <Link
                 key={e.href}
@@ -42,6 +42,16 @@ export function Navbar() {
                 {e.label}
               </Link>
             ))}
+            {/* Acceso al panel de administración */}
+            <Link
+              href="/login"
+              aria-label="Acceso del personal"
+              title="Acceso del personal"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full border border-ricuras-crema/40 hover:bg-ricuras-noche transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ricuras-dorado"
+            >
+              <ShieldCheck className="w-4 h-4 text-ricuras-dorado-claro" aria-hidden="true" />
+              <span className="hidden xl:inline">Personal</span>
+            </Link>
             <Link
               href="#reservas"
               className="px-6 py-3 rounded-full bg-ricuras-dorado text-ricuras-noche font-bold hover:bg-ricuras-dorado-claro transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ricuras-crema"
@@ -50,16 +60,25 @@ export function Navbar() {
             </Link>
           </nav>
 
-          {/* Botón menú móvil */}
+          {/* Móvil: acceso al panel + botón de menú */}
+          <div className="flex lg:hidden items-center gap-2">
+          <Link
+            href="/login"
+            aria-label="Acceso del personal"
+            className="p-3 rounded-full border border-ricuras-crema/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-ricuras-dorado"
+          >
+            <ShieldCheck className="w-6 h-6 text-ricuras-dorado-claro" aria-hidden="true" />
+          </Link>
           <button
             onClick={() => setIsOpen(!isOpen)}
             type="button"
-            className="lg:hidden p-3 rounded-full border border-ricuras-crema/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-ricuras-dorado"
+            className="p-3 rounded-full border border-ricuras-crema/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-ricuras-dorado"
             aria-expanded={isOpen}
             aria-label={isOpen ? "Cerrar menú" : "Abrir menú"}
           >
             {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
+          </div>
         </div>
       </div>
 
@@ -82,6 +101,14 @@ export function Navbar() {
             className="block mt-3 text-center py-3.5 rounded-full bg-ricuras-dorado text-ricuras-noche font-bold"
           >
             Reservar mesa
+          </Link>
+          <Link
+            href="/login"
+            onClick={() => setIsOpen(false)}
+            className="flex items-center justify-center gap-2 mt-2 py-3.5 rounded-full border border-ricuras-crema/40 font-semibold"
+          >
+            <ShieldCheck className="w-4 h-4 text-ricuras-dorado-claro" aria-hidden="true" />
+            Acceso del personal
           </Link>
         </nav>
       )}
