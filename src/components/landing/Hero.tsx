@@ -15,10 +15,10 @@ export function Hero() {
           <div className="flex flex-col items-start gap-6">
             <p className="font-script text-[1.9rem] leading-tight text-ricuras-dorado-claro">Bienvenidos a Ricuras</p>
             <h1 className="font-display font-normal uppercase leading-[0.98] tracking-[0.01em] text-[3rem] sm:text-[4.4rem] lg:text-[5.4rem]">
-              Café de especialidad y cocina ecuatoriana
+              Café de especialidad y sabor manabita
             </h1>
             <p className="text-lg max-w-[520px] text-ricuras-crema/85">
-              Desayunos típicos, platos de verde, repostería y café preparado por nuestros baristas. Dos casas en Loja, el mismo sabor de siempre.
+              Combinamos la cocina tradicional manabita y ecuatoriana con café preparado por nuestros baristas. Desayunos típicos, platos de verde y repostería en nuestras dos casas de Loja.
             </p>
             <div className="flex flex-wrap gap-3.5 pt-1">
               <Link
@@ -50,7 +50,7 @@ export function Hero() {
         <ul className="max-w-[1240px] mx-auto px-4 sm:px-6 py-6 flex flex-wrap justify-between gap-x-10 gap-y-4 text-sm font-semibold tracking-[0.06em] uppercase">
           <li className="flex items-center gap-2.5"><MapPin className="w-5 h-5 text-ricuras-dorado-claro" aria-hidden="true" />Dos casas en Loja</li>
           <li className="flex items-center gap-2.5"><Coffee className="w-5 h-5 text-ricuras-dorado-claro" aria-hidden="true" />Café de especialidad</li>
-          <li className="flex items-center gap-2.5"><UtensilsCrossed className="w-5 h-5 text-ricuras-dorado-claro" aria-hidden="true" />Cocina ecuatoriana</li>
+          <li className="flex items-center gap-2.5"><UtensilsCrossed className="w-5 h-5 text-ricuras-dorado-claro" aria-hidden="true" />Cocina manabita y ecuatoriana</li>
           <li className="flex items-center gap-2.5"><Truck className="w-5 h-5 text-ricuras-dorado-claro" aria-hidden="true" />Pedidos en PedidoIQ</li>
         </ul>
       </section>

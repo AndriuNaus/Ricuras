@@ -20,7 +20,7 @@ export function Footer() {
                 <span className="text-[11px] tracking-[0.3em] text-ricuras-dorado-claro">DE SAL Y DULCE</span>
               </span>
             </div>
-            <p className="text-sm text-ricuras-crema/75">Café de especialidad y cocina ecuatoriana en Loja, Ecuador.</p>
+            <p className="text-sm text-ricuras-crema/75">Café de especialidad y cocina tradicional manabita y ecuatoriana en Loja, Ecuador.</p>
             <div className="flex gap-2.5 pt-1">
               <a
                 href="https://www.instagram.com/ricurasdesalydulce/"

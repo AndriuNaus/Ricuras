@@ -11,13 +11,14 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: "Ricuras de Sal y Dulce | Cafetería de Especialidad y Cocina Tradicional en Loja",
   description:
-    "Cafetería de especialidad y gastronomía tradicional en Loja, Ecuador. Desayunos típicos, café de altura, bolones, tigrillo y repostería artesanal en el sector San Sebastián y Loja Pádel Club.",
+    "Cafetería de especialidad con cocina tradicional manabita y ecuatoriana en Loja, Ecuador. Desayunos típicos, platos de verde, bolones y repostería en San Sebastián y Loja Pádel Club.",
   keywords: [
     "Ricuras de Sal y Dulce",
     "Restaurante Loja",
     "Café de especialidad Loja",
     "Desayunos Loja",
-    "Comida típica lojana",
+    "Comida manabita Loja",
+    "Comida ecuatoriana Loja",
     "San Sebastián Loja",
   ],
   authors: [{ name: "Ricuras de Sal y Dulce" }],
