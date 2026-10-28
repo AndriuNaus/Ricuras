@@ -3,6 +3,7 @@ import { Hero } from "@/components/landing/Hero";
 import { MenuHighlights } from "@/components/landing/MenuHighlights";
 import { CoffeeSection } from "@/components/landing/CoffeeSection";
 import { LocationsSection } from "@/components/landing/LocationsSection";
+import { ReservasSection } from "@/components/landing/ReservasSection";
 import { Reviews } from "@/components/landing/Reviews";
 import { InstagramSection } from "@/components/landing/InstagramSection";
 import { Footer } from "@/components/landing/Footer";
@@ -16,6 +17,7 @@ export default function HomePage() {
         <MenuHighlights />
         <CoffeeSection />
         <LocationsSection />
+        <ReservasSection />
         <Reviews />
         <InstagramSection />
       </main>

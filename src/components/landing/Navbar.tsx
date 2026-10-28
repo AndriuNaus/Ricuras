@@ -9,6 +9,7 @@ const ENLACES = [
   { href: "#menu", label: "Menú" },
   { href: "#cafe", label: "Café" },
   { href: "#casas", label: "Nuestras casas" },
+  { href: "#reservas", label: "Reservas" },
   { href: "#instagram", label: "Instagram" },
 ];
 
@@ -31,7 +32,7 @@ export function Navbar() {
           </Link>
 
           {/* Navegación escritorio */}
-          <nav aria-label="Principal" className="hidden md:flex items-center gap-8 text-sm font-medium">
+          <nav aria-label="Principal" className="hidden lg:flex items-center gap-8 text-sm font-medium">
             {ENLACES.map((e) => (
               <Link
                 key={e.href}
@@ -42,10 +43,10 @@ export function Navbar() {
               </Link>
             ))}
             <Link
-              href="#casas"
+              href="#reservas"
               className="px-6 py-3 rounded-full bg-ricuras-dorado text-ricuras-noche font-bold hover:bg-ricuras-dorado-claro transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ricuras-crema"
             >
-              Cómo llegar
+              Reservar mesa
             </Link>
           </nav>
 
@@ -53,7 +54,7 @@ export function Navbar() {
           <button
             onClick={() => setIsOpen(!isOpen)}
             type="button"
-            className="md:hidden p-3 rounded-full border border-ricuras-crema/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-ricuras-dorado"
+            className="lg:hidden p-3 rounded-full border border-ricuras-crema/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-ricuras-dorado"
             aria-expanded={isOpen}
             aria-label={isOpen ? "Cerrar menú" : "Abrir menú"}
           >
@@ -64,7 +65,7 @@ export function Navbar() {
 
       {/* Menú desplegable móvil */}
       {isOpen && (
-        <nav aria-label="Principal móvil" className="md:hidden border-t border-ricuras-dorado/30 bg-ricuras-verde px-4 pt-3 pb-6 space-y-1">
+        <nav aria-label="Principal móvil" className="lg:hidden border-t border-ricuras-dorado/30 bg-ricuras-verde px-4 pt-3 pb-6 space-y-1">
           {ENLACES.map((e) => (
             <Link
               key={e.href}
@@ -76,11 +77,11 @@ export function Navbar() {
             </Link>
           ))}
           <Link
-            href="#casas"
+            href="#reservas"
             onClick={() => setIsOpen(false)}
             className="block mt-3 text-center py-3.5 rounded-full bg-ricuras-dorado text-ricuras-noche font-bold"
           >
-            Cómo llegar
+            Reservar mesa
           </Link>
         </nav>
       )}

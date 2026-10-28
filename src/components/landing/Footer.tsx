@@ -48,6 +48,7 @@ export function Footer() {
               <span className="font-bold tracking-[0.1em] uppercase text-xs text-ricuras-dorado-claro">Visítanos</span>
               <Link href="#casas" className="hover:text-ricuras-dorado-claro transition-colors">Matriz · Calle Olmedo</Link>
               <Link href="#casas" className="hover:text-ricuras-dorado-claro transition-colors">Sucursal · Loja Pádel Club</Link>
+              <Link href="#reservas" className="hover:text-ricuras-dorado-claro transition-colors">Reservar mesa</Link>
             </div>
             <div className="flex flex-col gap-2">
               <span className="font-bold tracking-[0.1em] uppercase text-xs text-ricuras-dorado-claro">Horario</span>

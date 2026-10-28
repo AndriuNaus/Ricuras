@@ -28,10 +28,10 @@ export function Hero() {
                 Ver el menú
               </Link>
               <Link
-                href="#casas"
+                href="#reservas"
                 className="px-7 py-[15px] rounded-full border-[1.5px] border-ricuras-crema/70 font-semibold hover:bg-ricuras-crema hover:text-ricuras-verde transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ricuras-dorado"
               >
-                Nuestras casas
+                Reservar mesa
               </Link>
             </div>
           </div>
