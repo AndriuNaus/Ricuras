@@ -6,6 +6,10 @@ import { createClient } from "@/lib/supabase/server";
  * Es pública a propósito (sirve para monitoreo), por eso NO devuelve URLs,
  * mensajes de error ni stack traces: esos detalles quedan solo en los logs.
  */
+
+// Siempre en vivo: sin esto Next la genera una sola vez al compilar
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
     const supabase = await createClient();
